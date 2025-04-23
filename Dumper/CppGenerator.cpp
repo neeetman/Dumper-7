@@ -29,7 +29,34 @@ constexpr std::string GetTypeFromSize(uint8 Size)
 
 std::string CppGenerator::MakeMemberString(const std::string& Type, const std::string& Name, std::string&& Comment)
 {
-	return std::format("\t{:{}} {:{}} // {}\n", Type, 45, Name + ";", 50, std::move(Comment));
+	std::string CleanType = Type;
+
+	const std::string token = " None";
+	size_t pos = 0;
+	int count = 0;
+	while ((pos = CleanType.find(token, pos)) != std::string::npos) {
+		++count;
+		pos += token.length();
+	}
+
+	if (count > 1) {
+		pos = 0;
+		int index = 0;
+		int seen = 0;
+		while ((pos = CleanType.find(token, pos)) != std::string::npos) {
+			++seen;
+			if (seen == 1) {
+				pos += token.length();
+				continue; 
+			}
+
+			std::string replacement = " None_" + std::to_string(index++);
+			CleanType.replace(pos, token.length(), replacement);
+			pos += replacement.length();
+		}
+	}
+
+	return std::format("\t{:{}} {:{}} // {}\n", CleanType, 45, Name + ";", 50, std::move(Comment));
 }
 
 std::string CppGenerator::MakeMemberStringWithoutName(const std::string& Type)
@@ -796,17 +823,51 @@ std::string CppGenerator::GetCycleFixupType(const StructWrapper& Struct, bool bI
 	return std::format("TObjectBasedCycleFixup<class {}, 0x{:04X}, 0x{:02X}>", Name, (OwnSize - UObjectSize), Align);
 }
 
-std::string CppGenerator::GetMemberTypeString(const PropertyWrapper& MemberWrapper, int32 PackageIndex, bool bAllowForConstPtrMembers)
+std::string FixDuplicateParamNamesInType(const std::string& TypeString)
 {
-	if (!MemberWrapper.IsUnrealProperty())
-	{
-		if (MemberWrapper.IsStatic() && !MemberWrapper.IsZeroSizedMember())
-			return "static " + MemberWrapper.GetType();
+	std::string result;
+	int noneIndex = 0;
+	size_t pos = 0;
 
-		return MemberWrapper.GetType();
+	while (pos < TypeString.size()) {
+		size_t found = TypeString.find("None", pos);
+		if (found == std::string::npos) {
+			result.append(TypeString.substr(pos));
+			break;
+		}
+
+		bool isWordBoundaryLeft = (found == 0 || !std::isalnum(TypeString[found - 1]) && TypeString[found - 1] != '_');
+		bool isWordBoundaryRight = (found + 4 >= TypeString.size() || !std::isalnum(TypeString[found + 4]) && TypeString[found + 4] != '_');
+
+		result.append(TypeString.substr(pos, found - pos));
+
+		if (isWordBoundaryLeft && isWordBoundaryRight) {
+			if (noneIndex == 0)
+				result += "None";
+			else
+				result += "None_" + std::to_string(noneIndex);
+			++noneIndex;
+		}
+		else {
+			result += "None";
+		}
+
+		pos = found + 4;
 	}
 
-	return GetMemberTypeString(MemberWrapper.GetUnrealProperty(), PackageIndex, bAllowForConstPtrMembers);
+	return result;
+}
+
+std::string CppGenerator::GetMemberTypeString(const PropertyWrapper& MemberWrapper, int32 PackageIndex, bool bAllowForConstPtrMembers)
+{
+	if (!MemberWrapper.IsUnrealProperty()) {
+		if (MemberWrapper.IsStatic() && !MemberWrapper.IsZeroSizedMember())
+			return FixDuplicateParamNamesInType("static " + MemberWrapper.GetType());
+
+		return FixDuplicateParamNamesInType(MemberWrapper.GetType());
+	}
+
+	return FixDuplicateParamNamesInType(GetMemberTypeString(MemberWrapper.GetUnrealProperty(), PackageIndex, bAllowForConstPtrMembers));
 }
 
 std::string CppGenerator::GetMemberTypeString(UEProperty Member, int32 PackageIndex, bool bAllowForConstPtrMembers)
@@ -2397,7 +2458,7 @@ R"({
 	PredefinedElements& UWorldPredefs = PredefinedMembers[ObjectArray::FindClassFast("World").GetIndex()];
 
 	constexpr const char* GetWorldThroughGWorldCode = R"(
-	if constexpr (Offsets::GWorld != 0)
+	if (Offsets::GWorld != 0)
 		return *reinterpret_cast<UWorld**>(InSDKUtils::GetImageBase() + Offsets::GWorld);
 )";
 
@@ -2865,22 +2926,22 @@ using namespace UC;
 	BasicHpp << "\n#include \"../NameCollisions.inl\"\n";
 
 	/* Offsets and disclaimer */
-	BasicHpp << std::format(R"(
+	BasicHpp << R"(
 /*
 * Disclaimer:
 *	- The 'GNames' is only a fallback and null by default, FName::AppendString is used
 *	- THe 'GWorld' offset is not used by the SDK, it's just there for "decoration", use the provided 'UWorld::GetWorld()' function instead
 */
 namespace Offsets
-{{
-	constexpr int32 GObjects          = 0x{:08X};
-	constexpr int32 AppendString      = 0x{:08X};
-	constexpr int32 GNames            = 0x{:08X};
-	constexpr int32 GWorld            = 0x{:08X};
-	constexpr int32 ProcessEvent      = 0x{:08X};
-	constexpr int32 ProcessEventIdx   = 0x{:08X};
-}}
-)", Off::InSDK::ObjArray::GObjects, Off::InSDK::Name::AppendNameToString, Off::InSDK::NameArray::GNames, Off::InSDK::World::GWorld, Off::InSDK::ProcessEvent::PEOffset, Off::InSDK::ProcessEvent::PEIndex);
+{
+extern int32 GObjects;
+extern int32 AppendString;
+extern int32 GNames;
+extern int32 GWorld;
+extern int32 ProcessEvent;
+extern int32 ProcessEventIdx;
+}
+)";
 
 
 
@@ -2986,6 +3047,21 @@ namespace BasicFilesImpleUtils
 	UFunction* FindFunctionByFName(const FName* Name);
 }
 )";
+
+
+	BasicCpp << std::format(R"(
+namespace Offsets
+{{
+	int32 GObjects          = 0x{:08X};
+	int32 AppendString      = 0x{:08X};
+	int32 GNames            = 0x{:08X};
+	int32 GWorld            = 0x{:08X};
+	int32 ProcessEvent      = 0x{:08X};
+	int32 ProcessEventIdx   = 0x{:08X};
+}}
+
+)", Off::InSDK::ObjArray::GObjects, Off::InSDK::Name::AppendNameToString, Off::InSDK::NameArray::GNames, Off::InSDK::World::GWorld, Off::InSDK::ProcessEvent::PEOffset, Off::InSDK::ProcessEvent::PEIndex);
+
 
 	BasicCpp << R"(
 class UClass* BasicFilesImpleUtils::FindClassByName(const std::string& Name)
