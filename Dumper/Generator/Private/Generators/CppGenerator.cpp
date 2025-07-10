@@ -3004,7 +3004,27 @@ namespace InSDKUtils
 	BasicHpp << R"(	template<typename FuncType>
 	inline FuncType GetVirtualFunction(const void* ObjectInstance, int32 Index)
 	{
+		if (!ObjectInstance) return nullptr;
+
 		void** VTable = *reinterpret_cast<void***>(const_cast<void*>(ObjectInstance));
+        if (!VTable) return nullptr;
+
+		constexpr uint32_t MAX_VTABLE_ENTRIES = 0x100;
+		if (Index < 0 || static_cast<uint32_t>(Index) >= MAX_VTABLE_ENTRIES) 
+			return nullptr;
+	
+		void* Addr = VTable[Index];
+		if (!Addr) return nullptr;
+
+		MEMORY_BASIC_INFORMATION mbi{};
+		if (VirtualQuery(Addr, &mbi, sizeof(mbi)) == 0) return nullptr;
+
+		const auto prot = mbi.Protect;
+		const bool exec = (prot & PAGE_EXECUTE) ||
+			(prot & PAGE_EXECUTE_READ) ||
+			(prot & PAGE_EXECUTE_READWRITE) ||
+			(prot & PAGE_EXECUTE_WRITECOPY);
+		if (!exec) return nullptr;
 
 		return reinterpret_cast<FuncType>(VTable[Index]);
 	}
