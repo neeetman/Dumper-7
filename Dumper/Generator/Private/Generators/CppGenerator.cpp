@@ -1413,7 +1413,7 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 	if (Type == EFileType::BasicHpp)
 	{
 		File << "#include \"../PropertyFixup.hpp\"\n";
-		File << "#include \"../UnrealContainers.hpp\"\n";
+		File << "#include \"Reflection/Unreal/UnrealContainers.hpp\"\n";
 	}
 
 	if (Type == EFileType::BasicCpp)
@@ -1515,12 +1515,12 @@ void CppGenerator::Generate()
 	GenerateNameCollisionsInl(NameCollisionsInl);
 
 	// Generate UnrealContainers.hpp
-	StreamType UnrealContainers(MainFolder / "UnrealContainers.hpp");
-	GenerateUnrealContainers(UnrealContainers);
+	//StreamType UnrealContainers(MainFolder / "UnrealContainers.hpp");
+	//GenerateUnrealContainers(UnrealContainers);
 
-	// Generate UtfN.hpp
-	StreamType UnicodeLib(MainFolder / "UtfN.hpp");
-	GenerateUnicodeLib(UnicodeLib);
+	//// Generate UtfN.hpp
+	//StreamType UnicodeLib(MainFolder / "UtfN.hpp");
+	//GenerateUnicodeLib(UnicodeLib);
 
 	// Generate Basic.hpp and Basic.cpp files
 	StreamType BasicHpp(Subfolder / "Basic.hpp");
@@ -2949,7 +2949,6 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 	};
 
 	std::string CustomIncludes = R"(#define VC_EXTRALEAN
-#define WIN32_LEAN_AND_MEAN
 
 #include <string>
 #include <functional>
@@ -2957,7 +2956,7 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 )";
 
 	WriteFileHead(BasicHpp, nullptr, EFileType::BasicHpp, "Basic file containing structs required by the SDK", CustomIncludes);
-	WriteFileHead(BasicCpp, nullptr, EFileType::BasicCpp, "Basic file containing function-implementations from Basic.hpp", "#include <Windows.h>");
+	WriteFileHead(BasicCpp, nullptr, EFileType::BasicCpp, "Basic file containing function-implementations from Basic.hpp", "#include <windows.h>");
 
 
 	/* use namespace of UnrealContainers */
@@ -2999,34 +2998,18 @@ namespace InSDKUtils
 	/* Custom 'GetImageBase' function */
 	BasicHpp << "\tuintptr_t GetImageBase();\n\n";
 
+	BasicHpp << "\tbool IsExecutableAddress(void* addr);\n\n";
 
 	/* GetVirtualFunction(const void* ObjectInstance, int32 Index) function */
 	BasicHpp << R"(	template<typename FuncType>
-	inline FuncType GetVirtualFunction(const void* ObjectInstance, int32 Index)
-	{
-		if (!ObjectInstance) return nullptr;
-
-		void** VTable = *reinterpret_cast<void***>(const_cast<void*>(ObjectInstance));
-        if (!VTable) return nullptr;
-
-		constexpr uint32_t MAX_VTABLE_ENTRIES = 0x100;
-		if (Index < 0 || static_cast<uint32_t>(Index) >= MAX_VTABLE_ENTRIES) 
-			return nullptr;
-	
-		void* Addr = VTable[Index];
-		if (!Addr) return nullptr;
-
-		MEMORY_BASIC_INFORMATION mbi{};
-		if (VirtualQuery(Addr, &mbi, sizeof(mbi)) == 0) return nullptr;
-
-		const auto prot = mbi.Protect;
-		const bool exec = (prot & PAGE_EXECUTE) ||
-			(prot & PAGE_EXECUTE_READ) ||
-			(prot & PAGE_EXECUTE_READWRITE) ||
-			(prot & PAGE_EXECUTE_WRITECOPY);
-		if (!exec) return nullptr;
-
-		return reinterpret_cast<FuncType>(VTable[Index]);
+	inline FuncType GetVirtualFunction(void const* obj, int index) {
+		if (!obj) return nullptr;
+		auto vtbl = *reinterpret_cast<void***>(const_cast<void*>(obj));
+		if (!vtbl || index < 0 || index >= 0x100) return nullptr;
+		void* addr = vtbl[index];
+		return (addr && IsExecutableAddress(addr))
+			? reinterpret_cast<FuncType>(addr)
+			: nullptr;
 	}
 )";
 
@@ -3127,6 +3110,18 @@ namespace Offsets
 
 
 	BasicCpp << R"(
+
+bool InSDKUtils::IsExecutableAddress(void* addr) {
+	MEMORY_BASIC_INFORMATION mbi{};
+	if (::VirtualQuery(addr, &mbi, sizeof(mbi)) == 0)
+		return false;
+	DWORD p = mbi.Protect;
+	return (p & PAGE_EXECUTE) ||
+		(p & PAGE_EXECUTE_READ) ||
+		(p & PAGE_EXECUTE_READWRITE) ||
+		(p & PAGE_EXECUTE_WRITECOPY);
+}
+
 class UClass* BasicFilesImpleUtils::FindClassByName(const std::string& Name)
 {
 	return UObject::FindClassFast(Name);

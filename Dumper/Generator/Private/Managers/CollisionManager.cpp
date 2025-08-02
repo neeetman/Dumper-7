@@ -1,5 +1,5 @@
 #include "Managers/CollisionManager.h"
-
+#include <unordered_set>
 
 NameInfo::NameInfo(HashStringTableIndex NameIdx, ECollisionType CurrentType)
 	: Name(NameIdx), CollisionData(0x0)
@@ -255,6 +255,16 @@ void CollisionManager::AddStructToNameContainer(UEStruct Struct, bool bIsStruct)
 	}
 };
 
+static constexpr std::string_view kCppKeywords[] = {
+	"for","friend","goto","if", "switch","template", "this"
+};
+
+inline bool IsCppKeyword(std::string_view s) {
+	static const std::unordered_set<std::string_view> set(
+		std::begin(kCppKeywords), std::end(kCppKeywords));
+	return set.find(s) != set.end();
+}
+
 std::string CollisionManager::StringifyName(UEStruct Struct, NameInfo Info)
 {
 	ECollisionType OwnCollisionType = static_cast<ECollisionType>(Info.OwnType);
@@ -272,7 +282,7 @@ std::string CollisionManager::StringifyName(UEStruct Struct, NameInfo Info)
 		}
 		if (Info.MemberNameCollisionCount > 0x0)
 		{
-			Name += ("_" + std::to_string(Info.MemberNameCollisionCount - 1));
+			Name += ("__" + std::to_string(Info.MemberNameCollisionCount - 1));
 		}
 	}
 	else if (OwnCollisionType == ECollisionType::FunctionName)
@@ -283,7 +293,7 @@ std::string CollisionManager::StringifyName(UEStruct Struct, NameInfo Info)
 		}
 		if (Info.FunctionNameCollisionCount > 0x0)
 		{
-			Name += ("_" + std::to_string(Info.FunctionNameCollisionCount - 1));
+			Name += ("__" + std::to_string(Info.FunctionNameCollisionCount - 1));
 		}
 	}
 	else if (OwnCollisionType == ECollisionType::ParameterName)
@@ -294,7 +304,29 @@ std::string CollisionManager::StringifyName(UEStruct Struct, NameInfo Info)
 		}
 		if (Info.ParamNameCollisionCount > 0x0)
 		{
-			Name += ("_" + std::to_string(Info.ParamNameCollisionCount - 1));
+			Name += ("__" + std::to_string(Info.ParamNameCollisionCount - 1));
+		}
+	}
+
+	// 1. 原始名本身是关键字
+	// 2. 或者经过前缀处理仍是关键字 (例如 "template" 没被加前缀的成员)
+	// 策略：若命中 -> 若无前缀则加 'X_'，否则加尾缀 '_'；再二次检查避免极端冲突。
+	auto isKeyword = [](std::string_view s) {
+		return IsCppKeyword(s);
+	};
+
+	if (isKeyword(Name))
+	{
+		bool hasPrefix = (Name.rfind("Func_", 0) == 0) || (Name.rfind("Param_", 0) == 0);
+		if (!hasPrefix) {
+			Name = "X_" + Name;   // 给原始关键字加一个前缀，区分含义
+		}
+		else {
+			Name += "_";
+		}
+		// 二次保险（极少情况）
+		if (isKeyword(Name)) {
+			Name += "_k";
 		}
 	}
 
