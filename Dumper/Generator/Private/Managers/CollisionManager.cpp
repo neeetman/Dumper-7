@@ -21,7 +21,7 @@ void NameInfo::InitCollisionData(const NameInfo& Existing, ECollisionType Curren
 			SuperMemberNameCollisionCount++;
 			return;
 		}
-		MemberNameCollisionCount++;
+		MemberNameCollisionCount = Existing.MemberNameCollisionCount + 1;
 		break;
 	case ECollisionType::FunctionName:
 		if (bIsSuper)
@@ -29,10 +29,10 @@ void NameInfo::InitCollisionData(const NameInfo& Existing, ECollisionType Curren
 			SuperFuncNameCollisionCount++;
 			return;
 		}
-		FunctionNameCollisionCount++;
+		FunctionNameCollisionCount = Existing.FunctionNameCollisionCount + 1;
 		break;
 	case ECollisionType::ParameterName:
-		ParamNameCollisionCount++;
+		ParamNameCollisionCount = Existing.ParamNameCollisionCount + 1;
 		break;
 	default:
 		break;
@@ -308,9 +308,9 @@ std::string CollisionManager::StringifyName(UEStruct Struct, NameInfo Info)
 		}
 	}
 
-	// 1. Ô­Ê¼Ãû±¾ÉíÊÇ¹Ø¼ü×Ö
-	// 2. »òÕß¾­¹ýÇ°×º´¦ÀíÈÔÊÇ¹Ø¼ü×Ö (ÀýÈç "template" Ã»±»¼ÓÇ°×ºµÄ³ÉÔ±)
-	// ²ßÂÔ£ºÈôÃüÖÐ -> ÈôÎÞÇ°×ºÔò¼Ó 'X_'£¬·ñÔò¼ÓÎ²×º '_'£»ÔÙ¶þ´Î¼ì²é±ÜÃâ¼«¶Ë³åÍ»¡£
+	// 1. Ô­Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç¹Ø¼ï¿½ï¿½ï¿½
+	// 2. ï¿½ï¿½ï¿½ß¾ï¿½ï¿½ï¿½Ç°×ºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç¹Ø¼ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ "template" Ã»ï¿½ï¿½ï¿½ï¿½Ç°×ºï¿½Ä³ï¿½Ô±)
+	// ï¿½ï¿½ï¿½Ô£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ -> ï¿½ï¿½ï¿½ï¿½Ç°×ºï¿½ï¿½ï¿½ 'X_'ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î²×º '_'ï¿½ï¿½ï¿½Ù¶ï¿½ï¿½Î¼ï¿½ï¿½ï¿½ï¿½â¼«ï¿½Ë³ï¿½Í»ï¿½ï¿½
 	auto isKeyword = [](std::string_view s) {
 		return IsCppKeyword(s);
 	};
@@ -319,12 +319,12 @@ std::string CollisionManager::StringifyName(UEStruct Struct, NameInfo Info)
 	{
 		bool hasPrefix = (Name.rfind("Func_", 0) == 0) || (Name.rfind("Param_", 0) == 0);
 		if (!hasPrefix) {
-			Name = "X_" + Name;   // ¸øÔ­Ê¼¹Ø¼ü×Ö¼ÓÒ»¸öÇ°×º£¬Çø·Öº¬Òå
+			Name = "X_" + Name;   // ï¿½ï¿½Ô­Ê¼ï¿½Ø¼ï¿½ï¿½Ö¼ï¿½Ò»ï¿½ï¿½Ç°×ºï¿½ï¿½ï¿½ï¿½ï¿½Öºï¿½ï¿½ï¿½
 		}
 		else {
 			Name += "_";
 		}
-		// ¶þ´Î±£ÏÕ£¨¼«ÉÙÇé¿ö£©
+		// ï¿½ï¿½ï¿½Î±ï¿½ï¿½Õ£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		if (isKeyword(Name)) {
 			Name += "_k";
 		}
