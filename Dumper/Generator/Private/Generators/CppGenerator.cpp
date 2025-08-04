@@ -548,6 +548,11 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 		if (Func.GetFunctionFlags() & EFunctionFlags::Delegate)
 			continue;
 
+		if (!Func.IsPredefined()) {
+			auto fname = Func.GetUnrealFunction().GetFName();
+			if (fname.GetCompIdx() == 0 && fname.GetNumber() == 0) continue;
+		}
+
 		// Handeling spacing between static and non-static, const and non-const, as well as inline and non-inline functions
 		if (bWasLastFuncInline != Func.HasInlineBody() && !bIsFirstIteration)
 		{
