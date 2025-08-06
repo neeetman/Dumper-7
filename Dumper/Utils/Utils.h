@@ -929,14 +929,38 @@ public:
 	}
 };
 
-inline bool IsReadableAddress(uintptr_t Address)
-{
-	MEMORY_BASIC_INFORMATION MemoryBasicInformation{};
+constexpr DWORD READABLE_MASK =
+	PAGE_READONLY
+	| PAGE_READWRITE
+	| PAGE_EXECUTE_READ
+	| PAGE_EXECUTE_READWRITE
+	| PAGE_WRITECOPY
+	| PAGE_EXECUTE_WRITECOPY;
+constexpr DWORD UNREADABLE_FLAGS = PAGE_NOACCESS | PAGE_GUARD;
 
-	if (VirtualQuery(reinterpret_cast<LPCVOID>(Address), &MemoryBasicInformation, sizeof(MemoryBasicInformation)))
-		return (MemoryBasicInformation.Protect & (PAGE_READONLY | PAGE_READWRITE | PAGE_EXECUTE_READWRITE));
+inline bool IsReadableAddress(const void* addr, size_t size = 1) {
+	auto        start = reinterpret_cast<const uint8_t*>(addr);
+	size_t      remaining = size;
 
-	return false;
+	while (remaining > 0) {
+		MEMORY_BASIC_INFORMATION mbi{};
+		if (VirtualQuery(start, &mbi, sizeof(mbi)) == 0)
+			return false;
+
+		if (!(mbi.State & MEM_COMMIT) ||
+			(mbi.Protect & UNREADABLE_FLAGS) ||
+			!(mbi.Protect & READABLE_MASK))
+		{
+			return false;
+		}
+
+		auto regionEnd = reinterpret_cast<const uint8_t*>(mbi.BaseAddress) + mbi.RegionSize;
+		size_t chunk = std::min<size_t>(remaining, regionEnd - start);
+		start += chunk;
+		remaining -= chunk;
+	}
+
+	return true;
 }
 
 /* Slower than FindByString */

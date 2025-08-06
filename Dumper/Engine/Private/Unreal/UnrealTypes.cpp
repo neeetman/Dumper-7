@@ -169,6 +169,17 @@ void FName::Init(bool bForceGNames)
 	{
 		thread_local FFreableString TempString(1024);
 
+		//const uint16_t* name16 = reinterpret_cast<const uint16_t*>(Name);
+		//uint16_t raw = *name16;
+		//size_t count = raw >> 6;
+		//bool   isWide = (raw & 1) != 0;
+		//size_t byteLen = isWide ? count * sizeof(wchar_t) : count * sizeof(char);
+		//void* dataAddr = (void*)(name16 + 1);
+		//if (!IsReadableAddress(dataAddr, byteLen)) {
+		//	// 不可读时直接返回空串
+		//	return L"";
+		//}
+
 		AppendString(Name, TempString);
 
 		std::wstring OutputString = TempString.ToWString();
