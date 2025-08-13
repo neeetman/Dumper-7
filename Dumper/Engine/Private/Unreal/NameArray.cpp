@@ -409,6 +409,11 @@ bool NameArray::TryFindNameArray()
 
 bool NameArray::TryFindNamePool()
 {
+#if defined MIMIA
+	Off::InSDK::NameArray::GNames = 0xAD922C0;
+	return true;
+#endif
+
 	// TODO (encryqed): Fix this below for 32-bit ue games ig?
 
 	/* Number of bytes we want to search for an indirect call to InitializeSRWLock */
@@ -450,6 +455,7 @@ bool NameArray::TryFindNamePool()
 		for (int i = 0; i < InitSRWLockSearchRange; i++)
 		{
 			/* Check for a relative call with the opcodes FF 15 00 00 00 00 */
+			// In Mifia, it can be 4C 8B 35 ? ? ? ?   | mov     r14, cs:InitializeSRWLock  Resolve32BitRelativeMove
 			if (*reinterpret_cast<uint16*>(PossibleConstructorAddress + i) != 0x15FF)
 				continue;
 
@@ -606,16 +612,16 @@ bool NameArray::SetGNamesWithoutCommiting()
 	if (Off::InSDK::NameArray::GNames != 0x0)
 		return false;
 
-	if (NameArray::TryFindNameArray())
-	{
-		std::cerr << std::format("Found 'TNameEntryArray GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
-		Settings::Internal::bUseNamePool = false;
-		return true;
-	}
-	else if (NameArray::TryFindNamePool())
+	if (NameArray::TryFindNamePool())
 	{
 		std::cerr << std::format("Found 'FNamePool GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
 		Settings::Internal::bUseNamePool = true;
+		return true;
+	}
+	else if (NameArray::TryFindNameArray())
+	{
+		std::cerr << std::format("Found 'TNameEntryArray GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
+		Settings::Internal::bUseNamePool = false;
 		return true;
 	}
 
