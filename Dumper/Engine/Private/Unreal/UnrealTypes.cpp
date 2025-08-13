@@ -66,34 +66,8 @@ FName::FName(const void* Ptr)
 
 void FName::Init(bool bForceGNames)
 {
-#if defined MIMIA
-	AppendString = reinterpret_cast<decltype(AppendString)>(GetModuleBase() + 0x3196F80);
-
-	Off::InSDK::Name::AppendNameToString = AppendString && !bForceGNames ? GetOffset(AppendString) : 0x0;
-
-	NameArray::SetGNamesWithoutCommiting();
-
-	std::cerr << std::format("Found FName::{} at Offset 0x{:X}\n\n", (Off::InSDK::Name::bIsUsingAppendStringOverToString ? "AppendString" : "ToString"), Off::InSDK::Name::AppendNameToString);
-
-	if (ToStr) return;
-
-	ToStr = [](const void* Name) -> std::wstring
-		{
-			thread_local FFreableString TempString(1024);
-
-			AppendString(Name, TempString);
-
-			std::wstring OutputString = TempString.ToWString();
-			TempString.ResetNum();
-
-			return OutputString;
-	};
-
-	return;
-#endif
-
 #if defined(_WIN64)
-	constexpr std::array<const char*, 7> PossibleSigs = 
+	constexpr std::array<const char*, 6> PossibleSigs = 
 	{ 
 		"48 8D ? ? 48 8D ? ? E8",
 		"48 8D ? ? ? 48 8D ? ? E8",
@@ -101,7 +75,6 @@ void FName::Init(bool bForceGNames)
 		"48 8D ? ? ? 49 8B ? E8",
 		"48 8D ? ? 48 8B ? E8",
 		"48 8D ? ? ? 48 8B ? E8",
-		"48 89 ? 4C 89 ? E8", // Mifia
 	};
 #elif defined(_WIN32)
 	constexpr std::array<const char*, 1> PossibleSigs = 
@@ -112,7 +85,7 @@ void FName::Init(bool bForceGNames)
 
 	MemAddress StringRef = FindByStringInAllSections("ForwardShadingQuality_");
 	const char* MatchingSig = nullptr;
-	
+
 	for (int i = 0; !AppendString && i < PossibleSigs.size(); i++)
 	{
 		AppendString = static_cast<decltype(AppendString)>(StringRef.RelativePattern(PossibleSigs[i], 0x50, -1/* auto */));
@@ -120,8 +93,6 @@ void FName::Init(bool bForceGNames)
 		if (AppendString)
 			MatchingSig = PossibleSigs[i];
 	}
-
-	//std::cerr << std::format("Found FName::AppendString at Offset 0x{:X}\n", AppendString ? GetOffset(AppendString) : 0x0);
 
 	// This signature partially overlaps with the signature for an inlined FName::AppendString call (see comment below)
 	const bool bFoundPotentiallyOverlappingSig = MatchingSig && strcmp(MatchingSig, "48 8D ? ? ? 48 8B ? E8") == 0;
