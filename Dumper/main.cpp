@@ -37,7 +37,6 @@ DWORD MainThread(HMODULE Module)
 		Sleep(Settings::Config::SleepTimeout);
 	}
 
-
 	Generator::InitEngineCore();
 	Generator::InitInternal();
 

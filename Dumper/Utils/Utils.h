@@ -1054,11 +1054,6 @@ inline MemAddress FindByStringInAllSections(const CharType* RefStr, uintptr_t St
 			if (!IsInProcessRange(StrPtr))
 				continue;
 
-			if (IsBadReadPtr(StrPtr)) {
-				std::cerr << std::format("Bad read ptr at 0x{:x}\n", StrPtr);
-				continue;
-			}
-
 			if (StrnCmpHelper(RefStr, reinterpret_cast<const CharType*>(StrPtr), RefStrLen))
 				return { SearchStart + i };
 

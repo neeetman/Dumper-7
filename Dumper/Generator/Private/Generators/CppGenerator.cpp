@@ -2529,10 +2529,8 @@ R"({
 	PredefinedElements& UWorldPredefs = PredefinedMembers[ObjectArray::FindClassFast("World").GetIndex()];
 
 	constexpr const char* GetWorldThroughGWorldCode = R"(
-	if (Offsets::GWorld != 0) {
-		auto world = *reinterpret_cast<UWorld**>(InSDKUtils::GetImageBase() + Offsets::GWorld);
-		if (world) return world;
-	}
+	if (Offsets::GWorld != 0)
+		return *reinterpret_cast<UWorld**>(InSDKUtils::GetImageBase() + Offsets::GWorld);
 )";
 
 	UWorldPredefs.Functions =
