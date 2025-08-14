@@ -1,4 +1,4 @@
-#include <vector>
+﻿#include <vector>
 
 #include "OffsetFinder/OffsetFinder.h"
 #include "Unreal/ObjectArray.h"
@@ -120,6 +120,7 @@ int32_t FindNameOffsetForSomeClass(std::function<bool(int32_t Value)> IsPotentia
 		int32 NumNamesWithLowCmpIdx = 0x0; // The number of names where the comparison index is in the range [0, 16]. Usually this should be far less than 0x20 names.
 		uint64 TotalValue = 0x0;		   // The total value of the int32 data at this offset over all objects in GObjects
 		bool bIsValidCmpIdxRange = true;   // Whether this value could be a valid FName::ComparisonIndex
+		int32 TotalNumberValue = 0x0;
 	};
 
 
@@ -134,7 +135,7 @@ int32_t FindNameOffsetForSomeClass(std::function<bool(int32_t Value)> IsPotentia
 	constexpr auto MaxAllowedNamesWithLowCmpIdx = 0x40;
 
 
-	for (int i = sizeof(void*); i <= 0x40; i += 0x4)
+	for (int i = sizeof(void*); i <= 0x40; i += 0x8) // UE 5 只考虑 8 字节的Fname
 	{
 		if (!IsPotentialValidOffset(i))
 			continue;
@@ -167,10 +168,12 @@ int32_t FindNameOffsetForSomeClass(std::function<bool(int32_t Value)> IsPotentia
 		for (ValueInfo& Info : PossibleOffsets)
 		{
 			const uint32 ValueAtOffset = GetDataAtOffsetAsInt(CurrentObjectOrField, Info.Offset);
+			const uint32 Number = GetDataAtOffsetAsInt(CurrentObjectOrField, Info.Offset + 0x4); // Number
 
 			Info.TotalValue += ValueAtOffset;
 			Info.bIsValidCmpIdxRange = Info.bIsValidCmpIdxRange && ValueAtOffset < MaxAllowedComparisonIndexValue;
 			Info.NumNamesWithLowCmpIdx += (ValueAtOffset <= LowComparisonIndexUpperCap);
+			Info.TotalNumberValue += Number;
 		}
 	}
 
