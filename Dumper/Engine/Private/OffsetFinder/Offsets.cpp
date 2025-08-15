@@ -296,9 +296,6 @@ void Off::Init()
 	Off::UStruct::MinAlignemnt = OffsetFinder::FindMinAlignmentOffset();
 	std::cerr << std::format("Off::UStruct::MinAlignemnts: 0x{:X}\n", Off::UStruct::MinAlignemnt);
 
-	Off::UClass::CastFlags = OffsetFinder::FindCastFlagsOffset();
-	std::cerr << std::format("Off::UClass::CastFlags: 0x{:X}\n", Off::UClass::CastFlags);
-
 	// Castflags become available for use
 
 	if (Settings::Internal::bUseFProperty)
