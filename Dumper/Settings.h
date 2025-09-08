@@ -51,9 +51,10 @@ namespace Settings
 		/* No seperate namespace for Params -> ParamNamespaceName = nullptr */
 		constexpr const char* ParamNamespaceName = "Params";
 
-		/* Feature is currently not supported/not working. */
-		/* Do not XOR strings -> XORString = nullptr. Custom XorStr implementations differing from https://github.com/JustasMasiulis/xorstr may require changes to the struct 'StringLiteral' in CppGenerator.cpp.  */
+		/* XOR function name, that will be wrapped around any generated string. e.g. "xorstr_" -> xorstr_("Pawn") etc. */
 		constexpr const char* XORString = nullptr;
+		/* XOR header file name. e.g. "xorstr.hpp" */
+		constexpr const char* XORStringInclude = nullptr;
 
 		/* Customizable part of Cpp code to allow for a custom 'uintptr_t InSDKUtils::GetImageBase()' function */
 		constexpr const char* GetImageBaseFuncBody = 
@@ -76,6 +77,9 @@ R"(
 
 		/* This will allow the user to manually initialize global variable addresses in the SDK (eg. GObjects, GNames, AppendString). */
 		constexpr bool bAddManualOverrideOptions = true;
+
+		/* Adds the 'final' specifier to classes with no loaded child class at SDK-generation time. */
+		constexpr bool bAddFinalSpecifier = true;
 	}
 
 	namespace MappingGenerator
@@ -93,13 +97,18 @@ R"(
 	/* Partially implemented  */
 	namespace Debug
 	{
-		inline constexpr bool bGenerateAssertionFile = false;
+		/* Generates a dedicated file defining macros for static asserts (Make sure InlineAssertions are off) */
+		inline constexpr bool bGenerateAssertionFile = true;
+
+		/* Prefix for assertion macros in assertion file. Example for "MyPackage_params.hpp": #define DUMPER7_ASSERTS_PARAMS_MyPackage */
+		inline constexpr const char* AssertionMacroPrefix = "DUMPER7_ASSERTS_";
+
 
 		/* Adds static_assert for struct-size, as well as struct-alignment */
-		inline constexpr bool bGenerateInlineAssertionsForStructSize = true;
+		inline constexpr bool bGenerateInlineAssertionsForStructSize = false;
 
 		/* Adds static_assert for member-offsets */
-		inline constexpr bool bGenerateInlineAssertionsForStructMembers = true;
+		inline constexpr bool bGenerateInlineAssertionsForStructMembers = false;
 
 
 		/* Prints debug information during Mapping-Generation */
