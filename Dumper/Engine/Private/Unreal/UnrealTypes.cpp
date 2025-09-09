@@ -1,4 +1,4 @@
-
+﻿
 #include <format>
 
 #include "Unreal/UnrealTypes.h"
@@ -85,6 +85,7 @@ void FName::Init(bool bForceGNames)
 
 	MemAddress StringRef = FindByStringInAllSections("ForwardShadingQuality_");
 	const char* MatchingSig = nullptr;
+    std::cerr << std::format("Found reference string at address 0x{:X}\n", StringRef.Address);
 
 	for (int i = 0; !AppendString && i < PossibleSigs.size(); i++)
 	{
@@ -184,7 +185,7 @@ void FName::Init(bool bForceGNames)
 		//size_t byteLen = isWide ? count * sizeof(wchar_t) : count * sizeof(char);
 		//void* dataAddr = (void*)(name16 + 1);
 		//if (!IsReadableAddress(dataAddr, byteLen)) {
-		//	// ���ɶ�ʱֱ�ӷ��ؿմ�
+		//	// 不可读时直接返回空串
 		//	return L"";
 		//}
 

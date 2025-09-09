@@ -1,4 +1,4 @@
-
+﻿
 #include "Generators/Generator.h"
 #include "Managers/StructManager.h"
 #include "Managers/EnumManager.h"

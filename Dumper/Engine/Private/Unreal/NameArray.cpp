@@ -1,4 +1,4 @@
-
+﻿
 #include <format>
 
 #include "Unreal/ObjectArray.h"
@@ -496,20 +496,21 @@ bool NameArray::TryInit(bool bIsTestOnly)
 	bool bFoundNameArray = false;
 	bool bFoundnamePool = false;
 
-	if (NameArray::TryFindNameArray())
+	if (NameArray::TryFindNamePool())
+	{
+			std::cerr << std::format("Found 'FNamePool GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
+			GNamesAddress = reinterpret_cast<uint8*>(ImageBase + Off::InSDK::NameArray::GNames); // No derefernce
+			Settings::Internal::bUseNamePool = true;
+			bFoundnamePool = true;
+	}
+	else if (NameArray::TryFindNameArray())
 	{
 		std::cerr << std::format("Found 'TNameEntryArray GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
 		GNamesAddress = *reinterpret_cast<uint8**>(ImageBase + Off::InSDK::NameArray::GNames);// Derefernce
 		Settings::Internal::bUseNamePool = false;
 		bFoundNameArray = true;
 	}
-	else if (NameArray::TryFindNamePool())
-	{
-		std::cerr << std::format("Found 'FNamePool GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
-		GNamesAddress = reinterpret_cast<uint8*>(ImageBase + Off::InSDK::NameArray::GNames); // No derefernce
-		Settings::Internal::bUseNamePool = true;
-		bFoundnamePool = true;
-	}
+
 
 	if (!bFoundNameArray && !bFoundnamePool)
 	{

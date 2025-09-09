@@ -1508,7 +1508,7 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 	if (Type == EFileType::BasicHpp)
 	{
 		File << "#include \"../PropertyFixup.hpp\"\n";
-		File << "#include \"../UnrealContainers.hpp\"\n";
+		File << "#include \"Reflection/Unreal/UnrealContainers.hpp\"\n";
 	}
 
 	if (Type == EFileType::BasicCpp)

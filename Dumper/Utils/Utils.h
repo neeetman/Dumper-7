@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <Windows.h>
 #include <iostream>
@@ -1014,6 +1014,23 @@ inline bool IsReadableAddress(const void* addr, size_t size = 1) {
 	return true;
 }
 
+template<typename CharT>
+std::string SafeReadString(uintptr_t addr, size_t maxLen = 256) {
+	if (!IsReadableAddress(reinterpret_cast<const void*>(addr)))
+		return "(unreadable)";
+
+	std::basic_string<CharT> s;
+	for (size_t i = 0; i < maxLen; i++) {
+		CharT c = *reinterpret_cast<const CharT*>(addr + i * sizeof(CharT));
+		if (c == 0) break;
+		s.push_back(c);
+	}
+	if constexpr (std::is_same_v<CharT, char>)
+		return s;
+	else
+		return std::string(s.begin(), s.end()); // 简单转换
+
+}
 /* Slower than FindByString */
 template<bool bCheckIfLeaIsStrPtr = false, typename CharType = char>
 inline MemAddress FindByStringInAllSections(const CharType* RefStr, uintptr_t StartAddress = 0x0, int32_t Range = 0x0)
@@ -1047,12 +1064,16 @@ inline MemAddress FindByStringInAllSections(const CharType* RefStr, uintptr_t St
 	{
 #if defined(_WIN64)
 		// opcode: lea
+		//if (!IsReadableAddress(SearchStart + i, 6)) continue;
+
 		if ((SearchStart[i] == uint8_t(0x4C) || SearchStart[i] == uint8_t(0x48)) && SearchStart[i + 1] == uint8_t(0x8D))
 		{
 			const uintptr_t StrPtr = ASMUtils::Resolve32BitRelativeLea(reinterpret_cast<uintptr_t>(SearchStart + i));
 
 			if (!IsInProcessRange(StrPtr))
 				continue;
+
+			//std::cerr << "FoundStr ref: " << SafeReadString<CharType>(StrPtr) << "\n";
 
 			if (StrnCmpHelper(RefStr, reinterpret_cast<const CharType*>(StrPtr), RefStrLen))
 				return { SearchStart + i };
