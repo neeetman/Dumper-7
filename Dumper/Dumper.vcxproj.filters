@@ -249,6 +249,16 @@
     <ClInclude Include="Engine\Public\Unreal\UnrealTypes.h">
       <Filter>Engine\Public\Unreal</Filter>
     </ClInclude>
+<<<<<<< HEAD
+    <ClInclude Include="Platform\Private\Arch_x86.h">
+=======
+    <ClInclude Include="Platform\Public\Architecture.h">
+>>>>>>> cd10201e73cc76a883c323561537bb90ab416510
+      <Filter>Platform\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Private\PlatformWindows.h">
+      <Filter>Platform\Public</Filter>
+    </ClInclude>
     <ClInclude Include="Platform\Private\Arch_x86.h">
       <Filter>Platform\Public</Filter>
     </ClInclude>

@@ -308,9 +308,6 @@ std::string CollisionManager::StringifyName(UEStruct Struct, NameInfo Info)
 		}
 	}
 
-	// 1. ԭʼ�������ǹؼ���
-	// 2. ���߾���ǰ׺�������ǹؼ��� (���� "template" û����ǰ׺�ĳ�Ա)
-	// ���ԣ������� -> ����ǰ׺��� 'X_'�������β׺ '_'���ٶ��μ����⼫�˳�ͻ��
 	auto isKeyword = [](std::string_view s) {
 		return IsCppKeyword(s);
 	};
@@ -319,12 +316,11 @@ std::string CollisionManager::StringifyName(UEStruct Struct, NameInfo Info)
 	{
 		bool hasPrefix = (Name.rfind("Func_", 0) == 0) || (Name.rfind("Param_", 0) == 0);
 		if (!hasPrefix) {
-			Name = "X_" + Name;   // ��ԭʼ�ؼ��ּ�һ��ǰ׺�����ֺ���
+			Name = "X_" + Name;
 		}
 		else {
 			Name += "_";
 		}
-		// ���α��գ����������
 		if (isKeyword(Name)) {
 			Name += "_k";
 		}
