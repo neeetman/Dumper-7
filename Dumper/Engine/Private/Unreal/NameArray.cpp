@@ -548,10 +548,6 @@ bool NameArray::TryInit(bool bIsTestOnly)
 		/* FNameEntry::Init() was moved into NameArray::InitializeNamePool to avoid duplicated logic */
 		return true;
 	}
-	 
-	//GNames = nullptr;
-	//Off::InSDK::NameArray::GNames = 0x0;
-	//Settings::Internal::bUseNamePool = false;
 
 	std::cerr << "The address that was found couldn't be used by the generator, this might be due to GNames-encryption.\n" << std::endl;
 
