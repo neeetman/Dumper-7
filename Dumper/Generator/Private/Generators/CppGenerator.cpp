@@ -3345,6 +3345,7 @@ extern int32 GNames;
 extern int32 GWorld;
 extern int32 ProcessEvent;
 extern int32 ProcessEventIdx;
+extern int32 GetNameEntry;
 }
 )";
 
@@ -3467,9 +3468,10 @@ namespace Offsets
 	int32 GWorld            = 0x{:08X};
 	int32 ProcessEvent      = 0x{:08X};
 	int32 ProcessEventIdx   = 0x{:08X};
+	int32 GetNameEntry   = 0x{:08X};
 }}
 
-)", Off::InSDK::ObjArray::GObjects, Off::InSDK::Name::AppendNameToString, Off::InSDK::NameArray::GNames, Off::InSDK::World::GWorld, Off::InSDK::ProcessEvent::PEOffset, Off::InSDK::ProcessEvent::PEIndex);
+)", Off::InSDK::ObjArray::GObjects, Off::InSDK::Name::AppendNameToString, Off::InSDK::NameArray::GNames, Off::InSDK::World::GWorld, Off::InSDK::ProcessEvent::PEOffset, Off::InSDK::ProcessEvent::PEIndex, Off::InSDK::Name::GetNameEntryFromName);
 
 
 	BasicCpp << R"(
