@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <Windows.h>
 #include <iostream>
@@ -76,7 +76,7 @@ public:
 namespace PlatformWindows
 {
 	template<typename T>
-	T* FinAlignedValueInRange(const T, const int32_t, uintptr_t, uint32_t);
+	T* FindAlignedValueInRange(const T, const int32_t, uintptr_t, uint32_t);
 
 	template<typename T>
 	T* FindAlignedValueInSection(const SectionInfo&, T, const int32_t);
@@ -87,9 +87,68 @@ namespace PlatformWindows
 
 class WindowsPrivateImplHelper
 {
+	struct MemRegion {
+		uintptr_t start;
+		uintptr_t end; // one-past-end
+	};
+
+	inline static bool IsReadableProtect(DWORD protect) {
+		constexpr DWORD AccessibleMask =
+			PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY |
+			PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
+		constexpr DWORD InaccessibleMask = PAGE_GUARD | PAGE_NOACCESS;
+		return (protect & AccessibleMask) && !(protect & InaccessibleMask);
+	}
+
+	inline static uintptr_t AlignUp(uintptr_t v, uintptr_t a) {
+		return a ? ((v + (a - 1)) & ~(a - 1)) : v;
+	}
+
+	inline static std::vector<MemRegion> CollectReadableRegions(uintptr_t start, size_t size) {
+		std::vector<MemRegion> regions;
+		if (size == 0) return regions;
+
+		const uintptr_t end = (start > UINTPTR_MAX - size) ? UINTPTR_MAX : (start + size);
+		uintptr_t cur = start;
+
+		MEMORY_BASIC_INFORMATION mbi{};
+		while (cur < end) {
+			if (!VirtualQuery(reinterpret_cast<LPCVOID>(cur), &mbi, sizeof(mbi))) break;
+
+			const uintptr_t base = reinterpret_cast<uintptr_t>(mbi.BaseAddress);
+			const uintptr_t regStart = (std::max)(cur, base);
+			const uintptr_t regEndRaw = (base > UINTPTR_MAX - mbi.RegionSize) ? UINTPTR_MAX : (base + mbi.RegionSize);
+			const uintptr_t regEnd = (std::min)(end, regEndRaw);
+
+			if (mbi.State == MEM_COMMIT && IsReadableProtect(mbi.Protect) && regStart < regEnd) {
+				regions.push_back({ regStart, regEnd });
+			}
+
+			if (base >= UINTPTR_MAX - mbi.RegionSize) break;
+			cur = base + mbi.RegionSize;
+		}
+		return regions;
+	}
+
+	template<typename T>
+	inline static bool SafeLoad(const void* p, T& out) {
+#if defined(_MSC_VER)
+		__try {
+			out = *reinterpret_cast<const volatile T*>(p);
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) {
+			return false;
+		}
+#else
+		out = *reinterpret_cast<const T*>(p);
+		return true;
+#endif
+	}
+
 public:
 	template<typename T>
-	friend T* PlatformWindows::FinAlignedValueInRange(const T, const int32_t, uintptr_t, uint32_t);
+	friend T* PlatformWindows::FindAlignedValueInRange(const T, const int32_t, uintptr_t, uint32_t);
 
 	template<typename T>
 	friend T* PlatformWindows::FindAlignedValueInSection(const SectionInfo&, T, const int32_t);
@@ -101,7 +160,7 @@ private:
 	using ValueCompareFuncType = bool(*)(const void* Value, const void* PotentialValueAddress);
 	
 private:
-	static void* FinAlignedValueInRangeImpl(const void* ValuePtr, ValueCompareFuncType ComparisonFunction, const int32_t ValueTypeSize, const int32_t Alignment, uintptr_t StartAddress, uint32_t Range);
+	static void* FindAlignedValueInRangeImpl(const void* ValuePtr, ValueCompareFuncType ComparisonFunction, const int32_t ValueTypeSize, const int32_t Alignment, uintptr_t StartAddress, uint32_t Range);
 	static void* FindAlignedValueInSectionImpl(const SectionInfo& Info, const void* ValuePtr, ValueCompareFuncType ComparisonFunction, const int32_t ValueTypeSize, const int32_t Alignment);
 	static void* FindAlignedValueInAllSectionsImpl(const void* ValuePtr, ValueCompareFuncType ComparisonFunction, const int32_t ValueTypeSize, const int32_t Alignment, const uintptr_t StartAddress, int32_t Range, const char* const ModuleName);
 };
@@ -154,14 +213,14 @@ namespace PlatformWindows
 
 
 	template<typename T>
-	T* FinAlignedValueInRange(const T Value, const int32_t Alignment, uintptr_t StartAddress, uint32_t Range)
+	T* FindAlignedValueInRange(const T Value, const int32_t Alignment, uintptr_t StartAddress, uint32_t Range)
 	{
 		auto ComparisonFunction = [](const void* ValueAddr, const void* PotentialMatchAddr) -> bool
 		{
 			return *static_cast<const T*>(ValueAddr) == *static_cast<const T*>(PotentialMatchAddr);
 		};
 
-		return static_cast<T*>(WindowsPrivateImplHelper::FinAlignedValueInRangeImpl(&Value, ComparisonFunction, sizeof(Value), Alignment, StartAddress, Range));
+		return static_cast<T*>(WindowsPrivateImplHelper::FindAlignedValueInRangeImpl(&Value, ComparisonFunction, sizeof(Value), Alignment, StartAddress, Range));
 	}
 
 	template<typename T>

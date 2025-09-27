@@ -1,4 +1,4 @@
-
+﻿
 #include "Generators/Generator.h"
 #include "Managers/StructManager.h"
 #include "Managers/EnumManager.h"
@@ -42,6 +42,7 @@ void Generator::InitEngineCore()
 	ObjectArray::Init();
 
 	CALL_PLATFORM_SPECIFIC_FUNCTION(FName::Init);
+	//CALL_PLATFORM_SPECIFIC_FUNCTION(FName::Init, true);
 
 	Off::Init();
 	PropertySizes::Init();

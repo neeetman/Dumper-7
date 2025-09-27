@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <Windows.h>
 #include <iostream>
@@ -80,4 +80,9 @@ inline void* FindUnrealExecFunctionByString(Type RefStr, void* StartAddress = nu
 	}
 
 	return nullptr;
+}
+
+template <typename T>
+constexpr T AlignUp(T value, T alignment) {
+	return (value + alignment - 1) & ~(alignment - 1);
 }

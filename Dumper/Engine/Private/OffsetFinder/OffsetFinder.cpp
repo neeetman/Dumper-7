@@ -1,4 +1,4 @@
-#include <vector>
+﻿#include <vector>
 
 #include "OffsetFinder/OffsetFinder.h"
 #include "Unreal/ObjectArray.h"
@@ -636,6 +636,7 @@ int32_t OffsetFinder::FindMinAlignmentOffset()
 	return FindOffset(Infos);
 }
 
+
 int32_t OffsetFinder::FindScriptOffset()
 {
 	const int32_t min_align_off = Off::UStruct::MinAlignment;
@@ -648,7 +649,7 @@ int32_t OffsetFinder::FindScriptOffset()
 
 	for (int i = search_start; i < 0x20; i += sizeof(void*)) {
         const auto script = *(TArray<uint8>*)(pc + i);
-		if (script.IsValid() && !IsBadReadPtr(script.GetDataPtr())) {
+		if (script.IsValid() && !Platform::IsBadReadPtr(script.GetDataPtr())) {
 			return i;
         }
 	}

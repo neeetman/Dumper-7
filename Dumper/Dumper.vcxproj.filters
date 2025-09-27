@@ -249,19 +249,10 @@
     <ClInclude Include="Engine\Public\Unreal\UnrealTypes.h">
       <Filter>Engine\Public\Unreal</Filter>
     </ClInclude>
-    <ClInclude Include="TmpUtils.h">
-      <Filter>Platform</Filter>
-    </ClInclude>
     <ClInclude Include="Platform\Private\Arch_x86.h">
-      <Filter>Platform\Private</Filter>
-    </ClInclude>
-    <ClInclude Include="Platform\Private\PlatformWindows.h">
-      <Filter>Platform\Private</Filter>
-    </ClInclude>
-    <ClInclude Include="Platform\Public\Architecture.h">
       <Filter>Platform\Public</Filter>
     </ClInclude>
-    <ClInclude Include="Platform\Public\Platform.h">
+    <ClInclude Include="Platform\Private\PlatformWindows.h">
       <Filter>Platform\Public</Filter>
     </ClInclude>
   </ItemGroup>

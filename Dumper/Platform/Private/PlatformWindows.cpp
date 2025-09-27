@@ -1,4 +1,4 @@
-
+﻿
 #include "TmpUtils.h"
 #include "PlatformWindows.h"
 #include "Arch_x86.h"
@@ -322,15 +322,26 @@ namespace
 }
 
 
-void* WindowsPrivateImplHelper::FinAlignedValueInRangeImpl(const void* ValuePtr, ValueCompareFuncType ComparisonFunction, const int32_t ValueTypeSize, const int32_t Alignment, uintptr_t StartAddress, uint32_t Range)
+void* WindowsPrivateImplHelper::FindAlignedValueInRangeImpl(const void* ValuePtr, ValueCompareFuncType ComparisonFunction, const int32_t ValueTypeSize, const int32_t Alignment, uintptr_t StartAddress, uint32_t Range)
 {
-	for (uint32_t i = 0x0; i <= GetAlignedSizeWithOffsetFromEnd(Range, Alignment, ValueTypeSize); i += Alignment)
-	{
-		void* TypedPtr = reinterpret_cast<void*>(StartAddress + i);
+	const uintptr_t step = Alignment > 0 ? static_cast<uintptr_t>(Alignment) : 1;
 
+	const uintptr_t scanSize = static_cast<uintptr_t>(Range);
+	auto regions = CollectReadableRegions(StartAddress, scanSize);
 
-		if (ComparisonFunction(ValuePtr, TypedPtr))
-			return TypedPtr;
+	for (const auto& r : regions) {
+		uintptr_t p = AlignUp(r.start, step);
+
+		if (r.end < static_cast<uintptr_t>(ValueTypeSize)) {
+			continue;
+		}
+		const uintptr_t limit = r.end - static_cast<uintptr_t>(ValueTypeSize) + 1;
+
+		for (; p < limit; p += step) {
+			if (ComparisonFunction(ValuePtr, (void*)p)) {
+				return reinterpret_cast<void*>(p);
+			}
+		}
 	}
 
 	return nullptr;
@@ -343,7 +354,7 @@ void* WindowsPrivateImplHelper::FindAlignedValueInSectionImpl(const SectionInfo&
 	const uint32_t Range = WinSectionInfo.SectionHeader->Misc.VirtualSize;
 	const uintptr_t SectionBaseAddrss = WinSectionInfo.Imagebase + WinSectionInfo.SectionHeader->VirtualAddress;
 
-	return FinAlignedValueInRangeImpl(ValuePtr, ComparisonFunction, ValueTypeSize, Alignment, SectionBaseAddrss, Range);
+	return FindAlignedValueInRangeImpl(ValuePtr, ComparisonFunction, ValueTypeSize, Alignment, SectionBaseAddrss, Range);
 }
 
 void* WindowsPrivateImplHelper::FindAlignedValueInAllSectionsImpl(const void* ValuePtr, ValueCompareFuncType ComparisonFunction, const int32_t ValueTypeSize, const int32_t Alignment, const uintptr_t StartAddress, int32_t Range, const char* const ModuleName)
@@ -361,7 +372,7 @@ void* WindowsPrivateImplHelper::FindAlignedValueInAllSectionsImpl(const void* Va
 		if (Range > 0x0)
 			Range -= SearchRange;
 
-		Result = FinAlignedValueInRangeImpl(ValuePtr, ComparisonFunction, ValueTypeSize, Alignment, SearchStartAddress, SearchRange);
+		Result = FindAlignedValueInRangeImpl(ValuePtr, ComparisonFunction, ValueTypeSize, Alignment, SearchStartAddress, SearchRange);
 
 		return Result != nullptr;
 	};
@@ -815,7 +826,6 @@ inline void* PlatformWindows::FindStringInRange(const CharType* RefStr, const ui
 
 	return nullptr;
 }
-
 
 
 /*
