@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <vector>
 
@@ -89,6 +89,7 @@ namespace OffsetFinder
 	/* FField */
 	int32_t FindFFieldNextOffset();
 	int32_t FindFFieldNameOffset();
+	int32_t NewFindFFieldNameOffset();
 	int32_t FindFFieldClassOffset();
 
 	/* UEnum */
@@ -100,6 +101,7 @@ namespace OffsetFinder
 	int32_t FindChildPropertiesOffset();
 	int32_t FindStructSizeOffset();
 	int32_t FindMinAlignmentOffset();
+    int32_t FindScriptOffset();
 
 	/* UFunction */
 	int32_t FindFunctionFlagsOffset();

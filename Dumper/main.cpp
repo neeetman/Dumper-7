@@ -1,4 +1,4 @@
-#include <Windows.h>
+﻿#include <Windows.h>
 #include <iostream>
 #include <chrono>
 #include <fstream>
@@ -40,6 +40,7 @@ DWORD MainThread(HMODULE Module)
 	Generator::InitEngineCore();
 	Generator::InitInternal();
 
+
 	if (Settings::Generator::GameName.empty() && Settings::Generator::GameVersion.empty())
 	{
 		// Only Possible in Main()
@@ -75,7 +76,7 @@ DWORD MainThread(HMODULE Module)
 	{
 		if (GetAsyncKeyState(VK_F6) & 1)
 		{
-			fclose(stdout);
+			fclose(stderr);
 			if (Dummy) fclose(Dummy);
 			FreeConsole();
 

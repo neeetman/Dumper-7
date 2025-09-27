@@ -254,6 +254,12 @@ void OffsetFinder::FixupHardcodedOffsets()
 		Off::FFieldClass::SuperClass += 0x08;
 	}
 
+	// For borderland 4
+	//Off::FFieldClass::Id += 0x08;
+	//Off::FFieldClass::CastFlags += 0x08;
+	//Off::FFieldClass::ClassFlags += 0x08;
+	//Off::FFieldClass::SuperClass += 0x08;
+
 	if (Settings::Internal::bUseFProperty)
 	{
 		/*
@@ -444,6 +450,29 @@ int32_t OffsetFinder::FindFFieldNextOffset()
 
 int32_t OffsetFinder::FindFFieldNameOffset()
 {
+	UEFField GuidChild = ObjectArray::FindStructFast("Guid").GetChildProperties();
+	UEFField VectorChild = ObjectArray::FindStructFast("Vector").GetChildProperties();
+
+	std::string GuidChildName = GuidChild.GetName();
+	std::string VectorChildName = VectorChild.GetName();
+
+	if ((GuidChildName == "A" || GuidChildName == "D") && (VectorChildName == "X" || VectorChildName == "Z"))
+		return Off::FField::Name;
+
+	for (Off::FField::Name = Off::FField::Owner; Off::FField::Name < 0x40; Off::FField::Name += 4)
+	{
+		GuidChildName = GuidChild.GetName();
+		VectorChildName = VectorChild.GetName();
+
+		if ((GuidChildName == "A" || GuidChildName == "D") && (VectorChildName == "X" || VectorChildName == "Z"))
+			return Off::FField::Name;
+	}
+
+	return OffsetNotFound;
+}
+
+int32_t OffsetFinder::NewFindFFieldNameOffset()
+{
 	auto IsPotentiallyValidOffset = [](int32 Offset) -> bool
 	{
 		// Make sure 0x4 aligned Offsets are neither the start, nor the middle of a pointer-member. Irrelevant for 32-bit, because the 2nd check will be 0x2 aligned then.
@@ -587,7 +616,7 @@ int32_t OffsetFinder::FindStructSizeOffset()
 
 int32_t OffsetFinder::FindMinAlignmentOffset()
 {
-	std::vector<std::pair<void*, int32_t>> Infos;
+	std::vector<std::pair<void*, int16_t>> Infos;
 
 	Infos.push_back({ ObjectArray::FindObjectFast("Transform").GetAddress(), 0x10 });
 
@@ -601,6 +630,26 @@ int32_t OffsetFinder::FindMinAlignmentOffset()
 	}
 
 	return FindOffset(Infos);
+}
+
+int32_t OffsetFinder::FindScriptOffset()
+{
+	const int32_t min_align_off = Off::UStruct::MinAlignment;
+	if (min_align_off <= 0) return OffsetNotFound;
+
+	auto pc = (uintptr_t)ObjectArray::FindObjectFast("PlayerController").GetAddress();
+    if (pc == 0) return OffsetNotFound;
+
+    int32 search_start = AlignUp(min_align_off + sizeof(int16), sizeof(void*));
+
+	for (int i = search_start; i < 0x20; i += sizeof(void*)) {
+        const auto script = *(TArray<uint8>*)(pc + i);
+		if (script.IsValid() && !IsBadReadPtr(script.GetDataPtr())) {
+			return i;
+        }
+	}
+
+    return OffsetNotFound;
 }
 
 /* UFunction */

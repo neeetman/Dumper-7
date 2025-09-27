@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Unreal/Enums.h"
 #include "../Settings.h"
@@ -197,7 +197,8 @@ namespace Off
 		inline int32 Children;
 		inline int32 ChildProperties;
 		inline int32 Size;
-		inline int32 MinAlignemnt;
+		inline int32 MinAlignment;
+        inline int32 Script;
 	}
 
 	namespace UFunction

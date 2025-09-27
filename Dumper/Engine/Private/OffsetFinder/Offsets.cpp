@@ -1,4 +1,4 @@
-#include <format>
+﻿#include <format>
 
 #include "Utils.h"
 
@@ -12,12 +12,12 @@
 void Off::InSDK::ProcessEvent::InitPE()
 {
 	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
-
+    std::cerr << std::format("VFT Address: 0x{:X}\n", reinterpret_cast<uintptr_t>(Vft));
 #if defined(_WIN64)
 	/* Primary, and more reliable, check for ProcessEvent */
 	auto IsProcessEvent = [](const uint8_t* FuncAddress, [[maybe_unused]] int32_t Index) -> bool
 	{
-		//return (Index == 0x4D);
+		//return (Index == 0x49);
 		return FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, FuncAddress, 0x400)
 			&& FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40, 0x0 }, FuncAddress, 0xF00);
 	};
@@ -293,9 +293,11 @@ void Off::Init()
 	Off::UStruct::Size = OffsetFinder::FindStructSizeOffset();
 	std::cerr << std::format("Off::UStruct::Size: 0x{:X}\n", Off::UStruct::Size);
 
-	Off::UStruct::MinAlignemnt = OffsetFinder::FindMinAlignmentOffset();
-	std::cerr << std::format("Off::UStruct::MinAlignemnts: 0x{:X}\n", Off::UStruct::MinAlignemnt);
+	Off::UStruct::MinAlignment = OffsetFinder::FindMinAlignmentOffset();
+	std::cerr << std::format("Off::UStruct::MinAlignment: 0x{:X}\n", Off::UStruct::MinAlignment);
 
+    Off::UStruct::Script = OffsetFinder::FindScriptOffset();
+    std::cerr << std::format("Off::UStruct::Script: 0x{:X}\n", Off::UStruct::Script);
 	// Castflags become available for use
 
 	if (Settings::Internal::bUseFProperty)
@@ -313,7 +315,13 @@ void Off::Init()
 		Off::FField::Class = OffsetFinder::FindFFieldClassOffset();
 		std::cerr << std::format("Off::FField::Class: 0x{:X}\n", Off::FField::Class);
 
+		// Comment out this line if you're crashing here and see if the NewFindFFieldNameOffset might work!
 		Off::FField::Name = OffsetFinder::FindFFieldNameOffset();
+		//Off::FField::Name = OffsetFinder::NewFindFFieldNameOffset();
+
+		if (Off::FField::Name == OffsetFinder::OffsetNotFound)
+			Off::FField::Name = OffsetFinder::NewFindFFieldNameOffset();
+
 		std::cerr << std::format("Off::FField::Name: 0x{:X}\n", Off::FField::Name);
 
 		/*
