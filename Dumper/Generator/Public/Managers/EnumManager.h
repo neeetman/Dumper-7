@@ -87,7 +87,7 @@ public:
 class EnumManager
 {
 private:
-	friend class EnumCollisionInfo;
+	friend struct EnumCollisionInfo;
 	friend class EnumInfoHandle;
 	friend class EnumManagerTest;
 

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <string>
 
@@ -6,13 +6,10 @@
 
 namespace Settings
 {
-	constexpr bool Is32Bit()
+	namespace General
 	{
-#if defined(_WIN64)
-		return false;
-#elif defined(_WIN32)
-		return true;
-#endif
+		/* This option determines whether calls to FindByStringInAllSections should only search executable sections, or all sections. */
+		constexpr bool bSearchOnlyExecutableSectionsForStrings = true;
 	}
   
 	inline constexpr const char* GlobalConfigPath = "C:/Dumper-7/Dumper-7.ini";
@@ -98,7 +95,7 @@ R"(
 	namespace Debug
 	{
 		/* Generates a dedicated file defining macros for static asserts (Make sure InlineAssertions are off) */
-		inline constexpr bool bGenerateAssertionFile = false;
+		inline constexpr bool bGenerateAssertionFile = true;
 
 		/* Prefix for assertion macros in assertion file. Example for "MyPackage_params.hpp": #define DUMPER7_ASSERTS_PARAMS_MyPackage */
 		inline constexpr const char* AssertionMacroPrefix = "DUMPER7_ASSERTS_";

@@ -1,4 +1,4 @@
-﻿#include <vector>
+#include <vector>
 #include <array>
 
 #include "Unreal/ObjectArray.h"
@@ -27,6 +27,10 @@ constexpr std::string GetTypeFromSize(uint8 Size)
 
 std::string CppGenerator::MakeMemberString(const std::string& Type, const std::string& Name, std::string&& Comment)
 {
+	//<tab><--45 chars--><-------50 chars----->
+	//     Type          MemberName;           // Comment
+	int NumSpacesToComment;
+
 	std::string CleanType = Type;
 
 	const std::string token = " None";
@@ -54,7 +58,20 @@ std::string CppGenerator::MakeMemberString(const std::string& Type, const std::s
 		}
 	}
 
-	return std::format("\t{:{}} {:{}} // {}\n", CleanType, 45, Name + ";", 50, std::move(Comment));
+	if (CleanType.length() < 45)
+	{
+		NumSpacesToComment = 50;
+	}
+	else if ((CleanType.length() + Name.length()) > 95)
+	{
+		NumSpacesToComment = 1;
+	}
+	else
+	{
+		NumSpacesToComment = 50 - (Type.length() - 45);
+	}
+
+	return std::format("\t{:{}} {:{}} // {}\n", CleanType, 45, Name + ";", NumSpacesToComment, std::move(Comment));
 }
 
 std::string CppGenerator::MakeMemberStringWithoutName(const std::string& Type)
@@ -1509,6 +1526,16 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 	{
 		File << "#include \"../PropertyFixup.hpp\"\n";
 		File << "#include \"Reflection/Unreal/UnrealContainers.hpp\"\n";
+
+		if constexpr (Settings::Debug::bGenerateAssertionFile)
+		{
+			File << "#include \"../Assertions.inl\"\n";
+		}
+
+		if constexpr (Settings::CppGenerator::XORStringInclude)
+		{
+			File << std::format("#include \"{}\"\n", Settings::CppGenerator::XORStringInclude);
+		}
 	}
 
 	if (Type == EFileType::BasicCpp)
@@ -1568,7 +1595,7 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 
 	File << "\n";
 
-	if constexpr (Settings::Is32Bit())
+	if constexpr (Platform::Is32Bit())
 	{
 		File << "#pragma pack(push, 0x4)\n";
 	}
@@ -1604,7 +1631,7 @@ void CppGenerator::WriteFileEnd(StreamType& File, EFileType Type)
 		File << "}\n\n";
 	}
 
-	if constexpr (Settings::Is32Bit())
+	if constexpr (Platform::Is32Bit())
 	{
 		File << "#pragma pack(pop)\n";
 	}
@@ -1628,7 +1655,7 @@ void CppGenerator::Generate()
 	//StreamType UnrealContainers(MainFolder / "UnrealContainers.hpp");
 	//GenerateUnrealContainers(UnrealContainers);
 
-	//// Generate UtfN.hpp
+	// Generate UtfN.hpp
 	//StreamType UnicodeLib(MainFolder / "UtfN.hpp");
 	//GenerateUnicodeLib(UnicodeLib);
 
@@ -3434,6 +3461,7 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 	};
 
 	std::string CustomIncludes = R"(#define VC_EXTRALEAN
+#define WIN32_LEAN_AND_MEAN
 
 #include <string>
 #include <functional>
@@ -3441,7 +3469,7 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 )";
 
 	WriteFileHead(BasicHpp, nullptr, EFileType::BasicHpp, "Basic file containing structs required by the SDK", CustomIncludes);
-	WriteFileHead(BasicCpp, nullptr, EFileType::BasicCpp, "Basic file containing function-implementations from Basic.hpp", "#include <windows.h>");
+	WriteFileHead(BasicCpp, nullptr, EFileType::BasicCpp, "Basic file containing function-implementations from Basic.hpp", "#include <Windows.h>");
 
 
 	/* use namespace of UnrealContainers */
@@ -3455,27 +3483,31 @@ using namespace UC;
 	std::string GetNameEntryFromNameOffsetText;
 
 	if (Off::InSDK::Name::bIsAppendStringInlinedAndUsed)
-		GetNameEntryFromNameOffsetText = std::format("\n	constexpr int32 GetNameEntry      = 0x{:08X};", Off::InSDK::Name::GetNameEntryFromName);
+		GetNameEntryFromNameOffsetText = std::format("\n	inline int32 GetNameEntry      = 0x{:08X};", Off::InSDK::Name::GetNameEntryFromName);
 
 	/* Offsets and disclaimer */
-	BasicHpp << R"(
+	BasicHpp << std::format(R"(
 /*
 * Disclaimer:
 *	- The 'GNames' is only a fallback and null by default, FName::AppendString is used
 *	- THe 'GWorld' offset is not used by the SDK, it's just there for "decoration", use the provided 'UWorld::GetWorld()' function instead
 */
 namespace Offsets
-{
-extern int32 GObjects;
-extern int32 AppendString;
-extern int32 GNames;
-extern int32 GWorld;
-extern int32 ProcessEvent;
-extern int32 ProcessEventIdx;
-extern int32 GetNameEntry;
-}
-)";
-
+{{
+	inline int32 GObjects          = 0x{:08X};
+	inline int32 AppendString      = 0x{:08X};{}
+	inline int32 GNames            = 0x{:08X};
+	inline int32 GWorld            = 0x{:08X};
+	inline int32 ProcessEvent      = 0x{:08X};
+	inline int32 ProcessEventIdx   = 0x{:08X};
+}}
+)", Off::InSDK::ObjArray::GObjects,
+	Off::InSDK::Name::AppendNameToString,
+	GetNameEntryFromNameOffsetText,
+	Off::InSDK::NameArray::GNames,
+	Off::InSDK::World::GWorld,
+	Off::InSDK::ProcessEvent::PEOffset,
+	Off::InSDK::ProcessEvent::PEIndex);
 
 
 	// Start Namespace 'InSDKUtils'
@@ -3496,11 +3528,9 @@ namespace InSDKUtils
 	inline FuncType GetVirtualFunction(void const* obj, int index) {
 		if (!obj) return nullptr;
 		auto vtbl = *reinterpret_cast<void***>(const_cast<void*>(obj));
-		if (!vtbl || index < 0 || index >= 0x100) return nullptr;
+		if (!vtbl) return nullptr;
 		void* addr = vtbl[index];
-		return (addr && IsExecutableAddress(addr))
-			? reinterpret_cast<FuncType>(addr)
-			: nullptr;
+		return (addr && IsExecutableAddress(addr)) ? reinterpret_cast<FuncType>(addr): nullptr;
 	}
 )";
 
@@ -3543,22 +3573,6 @@ namespace BasicFilesImpleUtils
 	FName StringToName(const wchar_t* Name);
 }
 )";
-
-
-	BasicCpp << std::format(R"(
-namespace Offsets
-{{
-	int32 GObjects          = 0x{:08X};
-	int32 AppendString      = 0x{:08X};
-	int32 GNames            = 0x{:08X};
-	int32 GWorld            = 0x{:08X};
-	int32 ProcessEvent      = 0x{:08X};
-	int32 ProcessEventIdx   = 0x{:08X};
-	int32 GetNameEntry   = 0x{:08X};
-}}
-
-)", Off::InSDK::ObjArray::GObjects, Off::InSDK::Name::AppendNameToString, Off::InSDK::NameArray::GNames, Off::InSDK::World::GWorld, Off::InSDK::ProcessEvent::PEOffset, Off::InSDK::ProcessEvent::PEIndex, Off::InSDK::Name::GetNameEntryFromName);
-
 
 	BasicCpp << R"(
 bool InSDKUtils::IsExecutableAddress(void* addr) {
@@ -4485,7 +4499,7 @@ R"({
 
 	return TempString.ToString();
 }}
-)", Settings::Is32Bit() ? "__thiscall" : "");
+)", Platform::Is32Bit() ? "__thiscall" : "");
 
 	constexpr const char* GetRawStringWithInlinedAppendString =
 		R"({
@@ -6055,7 +6069,12 @@ namespace UC
 
 	public:
 		TArray()
-			: Data(nullptr), NumElements(0), MaxElements(0)
+			: TArray(nullptr, 0, 0)
+		{
+		}
+
+		TArray(ArrayElementType* Data, int32 NumElements, int32 MaxElements)
+			: Data(Data), NumElements(NumElements), MaxElements(MaxElements)
 		{
 		}
 

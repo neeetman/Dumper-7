@@ -1,4 +1,4 @@
-﻿#include <format>
+#include <format>
 
 #include "Unreal/UnrealObjects.h"
 #include "Unreal/ObjectArray.h"

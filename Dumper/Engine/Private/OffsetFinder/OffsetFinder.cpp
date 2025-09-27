@@ -1,7 +1,9 @@
-﻿#include <vector>
+#include <vector>
 
 #include "OffsetFinder/OffsetFinder.h"
 #include "Unreal/ObjectArray.h"
+
+#include "Platform.h"
 
 /* UObject */
 int32_t OffsetFinder::FindUObjectFlagsOffset()
@@ -74,12 +76,14 @@ int32_t OffsetFinder::FindUObjectClassOffset()
 			NextClassB = *reinterpret_cast<const uint8_t* const*>(NextClassB + ClassPtrOffset);
 
 			/* If this was UObject::Class it would never be invalid. The pointer would simply point to itself.*/
-			if (!NextClassA || !NextClassB || IsBadReadPtr(NextClassA) || IsBadReadPtr(NextClassB))
+			if (!NextClassA || !NextClassB || Platform::IsBadReadPtr(NextClassA) || Platform::IsBadReadPtr(NextClassB))
 				return false;
 
 			if (CurrentClassA == NextClassA && CurrentClassB == NextClassB)
 				return true;
 		}
+
+		return false;
 	};
 
 	const uint8_t* const ObjA = static_cast<const uint8_t*>(ObjectArray::GetByIndex(0x055).GetAddress());
@@ -278,7 +282,7 @@ void OffsetFinder::FixupHardcodedOffsets()
 
 		auto IsValidPtr = [](void* a) -> bool
 		{
-			return !IsBadReadPtr(a) && (uintptr_t(a) & 0x1) == 0; // realistically, there wont be any pointers to unaligned memory
+			return !Platform::IsBadReadPtr(a) && (uintptr_t(a) & 0x1) == 0; // realistically, there wont be any pointers to unaligned memory
 		};
 
 		if (IsValidPtr(PossibleNextPtrOrBool0) && IsValidPtr(PossibleNextPtrOrBool1) && IsValidPtr(PossibleNextPtrOrBool2))
@@ -374,7 +378,7 @@ void OffsetFinder::InitFNameSettings()
 
 void OffsetFinder::PostInitFNameSettings()
 {
-	UEClass PlayerStart = ObjectArray::FindClassFast("PlayerStart");
+	const UEClass PlayerStart = ObjectArray::FindClassFast("PlayerStart");
 
 	const int32 FNameSize = PlayerStart.FindMember("PlayerStartTag").GetSize();
 
@@ -620,7 +624,7 @@ int32_t OffsetFinder::FindMinAlignmentOffset()
 
 	Infos.push_back({ ObjectArray::FindObjectFast("Transform").GetAddress(), 0x10 });
 
-	if constexpr (Settings::Is32Bit())
+	if constexpr (Platform::Is32Bit())
 	{
 		Infos.push_back({ ObjectArray::FindObjectFast("InterpCurveLinearColor").GetAddress(), 0x04 });
 	}
@@ -690,7 +694,8 @@ int32_t OffsetFinder::FindFunctionNativeFuncOffset()
 
 	for (int i = 0x30; i < 0x140; i += sizeof(void*))
 	{
-		if (IsInProcessRange(*reinterpret_cast<uintptr_t*>(WasInputKeyJustPressed + i)) && IsInProcessRange(*reinterpret_cast<uintptr_t*>(ToggleSpeaking + i)) && IsInProcessRange(*reinterpret_cast<uintptr_t*>(SwitchLevel_Or_FOV + i)))
+		if (Platform::IsAddressInProcessRange(*reinterpret_cast<uintptr_t*>(WasInputKeyJustPressed + i)) &&
+			Platform::IsAddressInProcessRange(*reinterpret_cast<uintptr_t*>(ToggleSpeaking + i)) && Platform::IsAddressInProcessRange(*reinterpret_cast<uintptr_t*>(SwitchLevel_Or_FOV + i)))
 			return i;
 	}
 
@@ -728,7 +733,7 @@ int32_t OffsetFinder::FindImplementedInterfacesOffset()
 	{
 		const auto& ActorArray = *reinterpret_cast<const TArray<FImplementedInterface>*>(ActorComponentClassPtr + i);
 
-		if (ActorArray.IsValid() && !IsBadReadPtr(ActorArray.GetDataPtr()))
+		if (ActorArray.IsValid() && !Platform::IsBadReadPtr(ActorArray.GetDataPtr()))
 		{
 			if (ActorArray[0].InterfaceClass == Interface_AssetUserDataClass)
 				return i;
@@ -953,7 +958,7 @@ int32_t OffsetFinder::FindInnerTypeOffset(const int32 PropertySize)
 	{
 		void* AddressToCheck = *reinterpret_cast<void* const*>(reinterpret_cast<const uint8*>(Property.GetAddress()) + PropertySize);
 
-		if (IsBadReadPtr(AddressToCheck))
+		if (Platform::IsBadReadPtr(AddressToCheck))
 			return PropertySize + sizeof(void*);
 	}
 
@@ -970,7 +975,7 @@ int32_t OffsetFinder::FindSetPropertyBaseOffset(const int32 PropertySize)
 	{
 		const void* AddressToCheck = *reinterpret_cast<void* const*>(reinterpret_cast<const uint8*>(Object.GetAddress()) + PropertySize);
 
-		if (IsBadReadPtr(AddressToCheck))
+		if (Platform::IsBadReadPtr(AddressToCheck))
 			return PropertySize + sizeof(void*);
 	}
 
@@ -988,7 +993,7 @@ int32_t OffsetFinder::FindMapPropertyBaseOffset(const int32 PropertySize)
 	{
 		const void* AddressToCheck = *reinterpret_cast<void* const*>(reinterpret_cast<const uint8*>(Object.GetAddress()) + PropertySize);
 
-		if (IsBadReadPtr(AddressToCheck))
+		if (Platform::IsBadReadPtr(AddressToCheck))
 			return PropertySize + sizeof(void*);
 	}
 
@@ -1032,7 +1037,7 @@ int32_t OffsetFinder::FindLevelActorsOffset()
 	{
 		const TArray<void*>& ActorArray = *reinterpret_cast<TArray<void*>*>(Lvl + i);
 
-		if (ActorArray.IsValid() && !IsBadReadPtr(ActorArray.GetDataPtr()))
+		if (ActorArray.IsValid() && !Platform::IsBadReadPtr(ActorArray.GetDataPtr()))
 		{
 			return i;
 		}
