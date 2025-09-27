@@ -1,4 +1,4 @@
-#include <format>
+﻿#include <format>
 
 #include "Utils.h"
 
@@ -12,12 +12,12 @@
 void Off::InSDK::ProcessEvent::InitPE()
 {
 	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
-
+    std::cerr << std::format("VFT Address: 0x{:X}\n", reinterpret_cast<uintptr_t>(Vft));
 #if defined(_WIN64)
 	/* Primary, and more reliable, check for ProcessEvent */
 	auto IsProcessEvent = [](const uint8_t* FuncAddress, [[maybe_unused]] int32_t Index) -> bool
 	{
-		//return (Index == 0x4D);
+		//return (Index == 0x49);
 		return FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, FuncAddress, 0x400)
 			&& FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40, 0x0 }, FuncAddress, 0xF00);
 	};
@@ -296,6 +296,8 @@ void Off::Init()
 	Off::UStruct::MinAlignment = OffsetFinder::FindMinAlignmentOffset();
 	std::cerr << std::format("Off::UStruct::MinAlignment: 0x{:X}\n", Off::UStruct::MinAlignment);
 
+    Off::UStruct::Script = OffsetFinder::FindScriptOffset();
+    std::cerr << std::format("Off::UStruct::Script: 0x{:X}\n", Off::UStruct::Script);
 	// Castflags become available for use
 
 	if (Settings::Internal::bUseFProperty)

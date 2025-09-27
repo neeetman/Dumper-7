@@ -1530,6 +1530,10 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 		if (Package.HasParameterStructs())
 			File << std::format("#include \"{}_parameters.hpp\"\n", PackageName);
 
+		if (PackageName == "CoreUObject") {
+			File << std::format("#include \"hooks/process_event.hpp\"\n", PackageName);
+		}
+
 		File << "\n";
 	}
 	else if (Package.IsValidHandle())
@@ -1904,6 +1908,11 @@ void CppGenerator::InitPredefinedMembers()
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
 			.Type = "int32", .Name = "Size", .Offset = Off::UStruct::Size, .Size = sizeof(int32), .ArrayDim = 0x1, .Alignment = alignof(int32),
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class TArray<class AActor*>", .Name = "Script", .Offset = Off::UStruct::Script, .Size = sizeof(TArray<uint8>), .ArrayDim = 0x1, .Alignment = alignof(TArray<uint8>),
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 		},
 	};
@@ -2510,11 +2519,13 @@ R"({
 		/* non-static inline functions */
 		PredefinedFunction{
 			.CustomComment = "Unreal Function to process all UFunction-calls",
-			.ReturnType = "void", .NameWithParams = "ProcessEvent(class UFunction* Function, void* Parms)", .Body = std::format(
-R"({{
-	InSDKUtils::CallGameFunction(InSDKUtils::GetVirtualFunction<void({}*)(const UObject*, class UFunction*, void*)>(this, Offsets::ProcessEventIdx), this, Function, Parms);
-}})", Settings::Is32Bit() ? "__thiscall" : ""),
-			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+			.ReturnType = "void", .NameWithParams = "ProcessEvent(class UFunction* Function, void* Parms)", .Body = 
+R"({
+	if (ProcessEventHook::s_original && Function != nullptr) {
+		ProcessEventHook::s_original(const_cast<UObject*>(this), Function, Parms);
+	}
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
 	};
 
@@ -3548,7 +3559,18 @@ namespace Offsets
 
 
 	BasicCpp << R"(
-class UClass* BasicFilesImpleUtils::FindClassByName(const std::string& Name)
+bool InSDKUtils::IsExecutableAddress(void* addr) {
+	MEMORY_BASIC_INFORMATION mbi{};
+	if (::VirtualQuery(addr, &mbi, sizeof(mbi)) == 0)
+		return false;
+	DWORD p = mbi.Protect;
+	return (p & PAGE_EXECUTE) ||
+		(p & PAGE_EXECUTE_READ) ||
+		(p & PAGE_EXECUTE_READWRITE) ||
+		(p & PAGE_EXECUTE_WRITECOPY);
+}
+
+class UClass* BasicFilesImpleUtils::FindClassByName(const std::string& Name, bool bByFullName)
 {
 	return bByFullName ? UObject::FindClass(Name) : UObject::FindClassFast(Name);
 }

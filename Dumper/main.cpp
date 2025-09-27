@@ -1,4 +1,4 @@
-#include <Windows.h>
+﻿#include <Windows.h>
 #include <iostream>
 #include <chrono>
 #include <fstream>
@@ -39,6 +39,7 @@ DWORD MainThread(HMODULE Module)
 
 	Generator::InitEngineCore();
 	Generator::InitInternal();
+
 
 	if (Settings::Generator::GameName.empty() && Settings::Generator::GameVersion.empty())
 	{

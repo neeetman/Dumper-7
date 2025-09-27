@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <vector>
 
@@ -101,6 +101,7 @@ namespace OffsetFinder
 	int32_t FindChildPropertiesOffset();
 	int32_t FindStructSizeOffset();
 	int32_t FindMinAlignmentOffset();
+    int32_t FindScriptOffset();
 
 	/* UFunction */
 	int32_t FindFunctionFlagsOffset();

@@ -626,102 +626,161 @@ inline void* FindPattern(const char* Signature, uint32_t Offset = 0, bool bSearc
 }
 
 
-template<typename T>
-inline T* FindAlignedValueInProcessInRange(T Value, int32_t Alignment, uintptr_t StartAddress, uint32_t Range)
-{
-	constexpr int32_t ElementSize = sizeof(T);
+struct MemRegion {
+	uintptr_t start;
+	uintptr_t end; // one-past-end
+};
 
-	for (uint32_t i = 0x0; i < Range; i += Alignment)
-	{
-		T* TypedPtr = reinterpret_cast<T*>(StartAddress + i);
+inline bool IsReadableProtect(DWORD protect) {
+	constexpr DWORD AccessibleMask =
+		PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY |
+		PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
+	constexpr DWORD InaccessibleMask = PAGE_GUARD | PAGE_NOACCESS;
+	return (protect & AccessibleMask) && !(protect & InaccessibleMask);
+}
 
-		if (*TypedPtr == Value)
-			return TypedPtr;
+inline uintptr_t AlignUp(uintptr_t v, uintptr_t a) {
+	return a ? ((v + (a - 1)) & ~(a - 1)) : v;
+}
+
+
+inline std::vector<MemRegion> CollectReadableRegions(uintptr_t start, size_t size) {
+	std::vector<MemRegion> regions;
+	if (size == 0) return regions;
+
+	const uintptr_t end = start + size;
+	uintptr_t cur = start;
+
+	MEMORY_BASIC_INFORMATION mbi{};
+	while (cur < end) {
+		if (!VirtualQuery(reinterpret_cast<LPCVOID>(cur), &mbi, sizeof(mbi))) break;
+
+		const uintptr_t base = reinterpret_cast<uintptr_t>(mbi.BaseAddress);
+		const uintptr_t regStart = max(cur, base);
+		const uintptr_t regEnd = min(end, base + mbi.RegionSize);
+
+		if (mbi.State == MEM_COMMIT && IsReadableProtect(mbi.Protect) && regStart < regEnd) {
+			regions.push_back({ regStart, regEnd });
+		}
+		// 跳到下一个 region
+		cur = base + mbi.RegionSize;
 	}
+	return regions;
+}
+
+template<typename T>
+inline bool SafeLoad(const void* p, T& out) {
+#if defined(_MSC_VER)
+	__try {
+		out = *reinterpret_cast<const volatile T*>(p);
+		return true;
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER) {
+		return false;
+	}
+#else
+	out = *reinterpret_cast<const T*>(p);
+	return true;
+#endif
+}
+
+template<typename T>
+inline T* FindAlignedValueInProcessInRange(T value, int32_t alignment, uintptr_t startAddress, size_t range) {
+	if (alignment <= 0) alignment = alignof(T);
+
+	auto regs = CollectReadableRegions(startAddress, range);
+	for (const auto& r : regs) {
+		uintptr_t p = AlignUp(r.start, static_cast<uintptr_t>(alignment));
+		const uintptr_t limit = (r.end >= sizeof(T)) ? (r.end - sizeof(T) + 1) : r.start;
+
+		for (; p < limit; p += alignment) {
+			T tmp{};
+			if (!SafeLoad(reinterpret_cast<const void*>(p), tmp))
+				break;
+
+			if (tmp == value)
+				return reinterpret_cast<T*>(p);
+		}
+	}
+	return nullptr;
+}
+
+template<typename T>
+inline T* FindAlignedValueInProcess(
+	T value,
+	const std::string& sectionName = ".data1",
+	int32_t alignment = alignof(T),
+	bool bSearchAllSections = false)
+{
+	const auto [imageBase, imageSize] = GetImageBaseAndSize();
+
+	uintptr_t searchStart = imageBase;
+	size_t    searchRange = imageSize;
+
+	if (!bSearchAllSections) {
+		const auto [secStart, secSize] = GetSectionByName(imageBase, sectionName);
+		if (secStart && secSize) {
+			searchStart = secStart;
+			searchRange = secSize;
+		}
+		else {
+			bSearchAllSections = true;
+		}
+	}
+
+	if (T* found = FindAlignedValueInProcessInRange<T>(value, alignment, searchStart, searchRange))
+		return found;
+
+	if (!bSearchAllSections && searchStart != imageBase)
+		return FindAlignedValueInProcess<T>(value, sectionName, alignment, /*bSearchAllSections=*/true);
 
 	return nullptr;
 }
 
 template<typename T>
-inline T* FindAlignedValueInProcess(T Value, const std::string& Sectionname = ".data", int32_t Alignment = alignof(T), bool bSearchAllSections = false)
+inline std::vector<T*> FindAllAlignedValueInProcess(
+	T value,
+	const std::string& sectionName = ".data1",
+	int32_t alignment = alignof(T),
+	bool bSearchAllSections = false)
 {
-	const auto [ImageBase, ImageSize] = GetImageBaseAndSize();
+	const auto [imageBase, imageSize] = GetImageBaseAndSize();
 
-	uintptr_t SearchStart = ImageBase;
-	uintptr_t SearchRange = ImageSize;
+	uintptr_t searchStart = imageBase;
+	size_t    searchRange = imageSize;
 
-	if (!bSearchAllSections)
-	{
-		const auto [SectionStart, SectionSize] = GetSectionByName(ImageBase, Sectionname);
-
-		if (SectionStart != 0x0 && SectionSize != 0x0)
-		{
-			SearchStart = SectionStart;
-			SearchRange = SectionSize;
+	if (!bSearchAllSections) {
+		const auto [secStart, secSize] = GetSectionByName(imageBase, sectionName);
+		if (secStart && secSize) {
+			searchStart = secStart;
+			searchRange = secSize;
 		}
-		else
-		{
+		else {
 			bSearchAllSections = true;
 		}
 	}
 
-	T* Result = FindAlignedValueInProcessInRange(Value, Alignment, SearchStart, SearchRange);
+	std::vector<T*> results;
+	auto regs = CollectReadableRegions(searchStart, searchRange);
 
-	if (!Result && SearchStart != ImageBase)
-		return FindAlignedValueInProcess(Value, Sectionname, Alignment, true);
+	for (const auto& r : regs) {
+		uintptr_t p = AlignUp(r.start, static_cast<uintptr_t>(alignment));
+		const uintptr_t limit = (r.end >= sizeof(T)) ? (r.end - sizeof(T) + 1) : r.start;
 
-	return Result;
-}
+		for (; p < limit; p += alignment) {
+			T tmp{};
+			if (!SafeLoad(reinterpret_cast<const void*>(p), tmp))
+				break;
 
-template<typename T>
-inline std::vector<T*> FindAllAlignedValueInProcess(T Value, const std::string& Sectionname = ".data", int32_t Alignment = alignof(T), bool bSearchAllSections = false)
-{
-	const auto [ImageBase, ImageSize] = GetImageBaseAndSize();
-
-	uintptr_t SearchStart = ImageBase;
-	uintptr_t SearchRange = ImageSize;
-
-	if (!bSearchAllSections)
-	{
-		const auto [SectionStart, SectionSize] = GetSectionByName(ImageBase, Sectionname);
-
-		if (SectionStart != 0x0 && SectionSize != 0x0)
-		{
-			SearchStart = SectionStart;
-			SearchRange = SectionSize;
-		}
-		else
-		{
-			bSearchAllSections = true;
+			if (tmp == value)
+				results.push_back(reinterpret_cast<T*>(p));
 		}
 	}
 
-	std::vector<T*> Results;
-	auto Start = SearchStart;
-	auto Range = SearchRange;
-	do
-	{
-		T* Result = FindAlignedValueInProcessInRange(Value, Alignment, Start, Range);
-		if (!Result)
-		{
-			break;
-		}
-		Results.push_back(Result);
-		uintptr_t NewStart = reinterpret_cast<uintptr_t>(Result) + Alignment;
-		intptr_t NewRange = Range - (NewStart - Start);
-		if (NewRange < 0)
-		{
-			break;
-		}
-		Start = NewStart;
-		Range = NewRange;
-	}
-	while (true);
+	if (results.empty() && !bSearchAllSections && searchStart != imageBase)
+		return FindAllAlignedValueInProcess<T>(value, sectionName, alignment, /*bSearchAllSections=*/true);
 
-	if (Results.empty() && SearchStart != ImageBase)
-		return FindAllAlignedValueInProcess(Value, Sectionname, Alignment, true);
-
-	return Results;
+	return results;
 }
 
 template<bool bShouldResolve32BitJumps = true>
@@ -1064,8 +1123,6 @@ inline MemAddress FindByStringInAllSections(const CharType* RefStr, uintptr_t St
 	{
 #if defined(_WIN64)
 		// opcode: lea
-		//if (!IsReadableAddress(SearchStart + i, 6)) continue;
-
 		if ((SearchStart[i] == uint8_t(0x4C) || SearchStart[i] == uint8_t(0x48)) && SearchStart[i + 1] == uint8_t(0x8D))
 		{
 			const uintptr_t StrPtr = ASMUtils::Resolve32BitRelativeLea(reinterpret_cast<uintptr_t>(SearchStart + i));

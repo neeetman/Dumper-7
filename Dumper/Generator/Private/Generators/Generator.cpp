@@ -47,7 +47,6 @@ void Generator::InitEngineCore()
 	Off::InSDK::World::InitGWorld(); // Must be at this position, relies on offsets initialized in Off::Init()
 
 	Off::InSDK::Text::InitTextOffsets(); // Must be at this position, relies on offsets initialized in Off::InitPE()
-
 	InitSettings();
 }
 
