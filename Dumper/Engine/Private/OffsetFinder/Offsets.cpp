@@ -22,11 +22,7 @@ void Off::InSDK::ProcessEvent::InitPE_Windows()
 	/* Primary, and more reliable, check for ProcessEvent */
 	auto IsProcessEvent = [](const uint8_t* FuncAddress, [[maybe_unused]] int32_t Index) -> bool
 	{
-<<<<<<< HEAD
-		return Index == 0x49;
-=======
 		// 0x49
->>>>>>> cd10201e73cc76a883c323561537bb90ab416510
 		return Platform::FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, FuncAddress, 0x400)
 			&& Platform::FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40, 0x0 }, FuncAddress, 0xF00);
 	};
@@ -309,6 +305,10 @@ void Off::Init()
 
 	Off::UStruct::MinAlignment = OffsetFinder::FindMinAlignmentOffset();
 	std::cerr << std::format("Off::UStruct::MinAlignment: 0x{:X}\n", Off::UStruct::MinAlignment);
+
+	Off::UStruct::Script = OffsetFinder::FindScriptOffset();
+	OverwriteIfInvalidOffset(Off::UStruct::Script, (Off::UStruct::MinAlignment + sizeof(int32)));
+	std::cerr << std::format("Off::UStruct::Script: 0x{:X}\n", Off::UStruct::Script);
 
 	Off::UClass::CastFlags = OffsetFinder::FindCastFlagsOffset();
 	std::cerr << std::format("Off::UClass::CastFlags: 0x{:X}\n", Off::UClass::CastFlags);

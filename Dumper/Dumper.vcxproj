@@ -186,11 +186,6 @@
     <ClInclude Include="Generator\Public\Generators\DumpspaceGenerator.h" />
     <ClInclude Include="Platform\Private\Arch_x86.h" />
     <ClInclude Include="Platform\Private\PlatformWindows.h" />
-<<<<<<< HEAD
-=======
-    <ClInclude Include="Platform\Public\Architecture.h" />
-    <ClInclude Include="Platform\Public\Platform.h" />
->>>>>>> cd10201e73cc76a883c323561537bb90ab416510
     <ClInclude Include="Utils\Compression\zstd.h" />
     <ClInclude Include="Utils\Dumpspace\DSGen.h" />
     <ClInclude Include="Generator\Public\Generators\CppGenerator.h" />
