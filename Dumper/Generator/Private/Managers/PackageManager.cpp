@@ -325,17 +325,31 @@ void PackageManager::InitDependencies()
 	}
 }
 
+static std::string SanitizePath(std::string s) {
+	if (!s.empty() && s[0] == '/') s.erase(0, 1);
+	for (auto& c : s) {
+		if (c == '\\') c = '/';
+		else if (c == ':') c = '_';
+	}
+	while (!s.empty() && s.back() == '/') s.pop_back();
+	return s;
+}
+
 void PackageManager::InitNames()
 {
 	for (auto& [PackageIdx, Info] : PackageInfos)
 	{
-		const std::string PackageName = ObjectArray::GetByIndex(PackageIdx).GetValidName();
+		UEObject Pkg = ObjectArray::GetByIndex(PackageIdx);
 
+		const std::string PackageName = Pkg.GetValidName();
 		auto [Name, bWasInserted] = UniquePackageNameTable.FindOrAdd(PackageName);
 		Info.Name = Name;
-
 		if (!bWasInserted) [[unlikely]]
 			Info.CollisionCount = UniquePackageNameTable[Name].GetCollisionCount().CollisionCount;
+
+
+		std::string rawPath = Pkg.GetNameWithPath();
+		Info.NormalizedPath = SanitizePath(rawPath);   // "Script/Engine"
 	}
 }
 

@@ -75,6 +75,8 @@ private:
 
 	bool bHasParams;
 
+	std::string NormalizedPath;
+
 	DependencyManager StructsSorted;
 	DependencyManager ClassesSorted;
 
