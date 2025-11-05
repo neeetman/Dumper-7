@@ -3501,12 +3501,12 @@ namespace Offsets
 	inline int32 ProcessEvent      = 0x{:08X};
 	inline int32 ProcessEventIdx   = 0x{:08X};
 }}
-)", Off::InSDK::ObjArray::GObjects,
-	Off::InSDK::Name::AppendNameToString,
+)", max(Off::InSDK::ObjArray::GObjects, 0x0),
+	max(Off::InSDK::Name::AppendNameToString, 0x0),
 	GetNameEntryFromNameOffsetText,
-	Off::InSDK::NameArray::GNames,
-	Off::InSDK::World::GWorld,
-	Off::InSDK::ProcessEvent::PEOffset,
+	max(Off::InSDK::NameArray::GNames, 0x0),
+	max(Off::InSDK::World::GWorld, 0x0),
+	max(Off::InSDK::ProcessEvent::PEOffset, 0x0),
 	Off::InSDK::ProcessEvent::PEIndex);
 
 
@@ -3657,7 +3657,7 @@ const FName& GetStaticName(const wchar_t* Name, FName& StaticName)
 	/* Implementation of 'UObject::StaticClass()', templated to allow for a per-class local static class-pointer */
 	BasicHpp << R"(
 template<bool bIsFullName = false>
-class UClass* GetStaticClass(const char* Name, class UClass*& StaticClass)
+class UClass* GetStaticClassImpl(const char* Name, class UClass*& StaticClass)
 {
 	if (StaticClass == nullptr)
 	{
@@ -3740,13 +3740,13 @@ ClassType* GetDefaultObjImpl()
 #define STATIC_CLASS_IMPL(NameString) \
 { \
     static UClass* Clss = nullptr; \
-    return GetStaticClass(NameString, Clss); \
+    return GetStaticClassImpl(NameString, Clss); \
 }
 
 #define STATIC_CLASS_IMPL_FULLNAME(FullNameString) \
 { \
     static UClass* Clss = nullptr; \
-    return GetStaticClass<true>(FullNameString, Clss); \
+    return GetStaticClassImpl<true>(FullNameString, Clss); \
 }
 
 #define BP_STATIC_CLASS_IMPL(NameString) \
@@ -5180,6 +5180,7 @@ public:
 )";
 	}
 
+
 	/* class FScriptInterface */
 	PredefinedStruct FScriptInterface = PredefinedStruct{
 		.UniqueName = "FScriptInterface", .Size = sizeof(void*) + sizeof(void*), .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
@@ -5432,9 +5433,9 @@ public:
 	/* TMulticastInlineDelegate */
 	PredefinedStruct TMulticastInlineDelegate = PredefinedStruct{
 		.CustomTemplateText = "template<typename FunctionSignature>",
-		.UniqueName = "TMulticastInlineDelegate", .Size = sizeof(TArray<int>), .Alignment = alignof(TArray<int>), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+		.UniqueName = "TMulticastInlineDelegate", .Size = PropertySizes::MulticastInlineDelegateProperty, .Alignment = alignof(TArray<int>), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
-
+	
 	TMulticastInlineDelegate.Properties =
 	{
 		PredefinedMember {
@@ -5456,7 +5457,7 @@ public:
 	{
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "TArray<FScriptDelegate>", .Name = "InvocationList", .Offset = 0x0, .Size = sizeof(TArray<int>), .ArrayDim = 0x1, .Alignment = alignof(TArray<int>),
+			.Type = "TArray<FScriptDelegate>", .Name = "InvocationList", .Offset = static_cast<int32>(PropertySizes::MulticastInlineDelegateProperty - sizeof(TArray<int>)), .Size = sizeof(TArray<int>), .ArrayDim = 0x1, .Alignment = alignof(TArray<int>),
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 		}
 	};

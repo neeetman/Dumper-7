@@ -146,7 +146,7 @@ namespace
 		return nullptr;
 	}
 
-	inline std::pair<uintptr_t, uintptr_t> GetImageBaseAndSize(const char* const ModuleName = nullptr)
+	inline std::pair<uintptr_t, uintptr_t> GetImageBaseAndSize(const char* const ModuleName = Settings::General::DefaultModuleName)
 	{
 		const uintptr_t ImageBase = GetModuleBase(ModuleName);
 		const PIMAGE_NT_HEADERS NtHeader = reinterpret_cast<PIMAGE_NT_HEADERS>(ImageBase + reinterpret_cast<PIMAGE_DOS_HEADER>(ImageBase)->e_lfanew);
@@ -172,6 +172,9 @@ namespace
 		for (int i = 0; i < NtHeaders->FileHeader.NumberOfSections; i++)
 		{
 			const IMAGE_SECTION_HEADER* CurrentSection = &Sections[i];
+
+			if ((CurrentSection->Characteristics & IMAGE_SCN_MEM_READ) == 0)
+				continue;
 
 			if (Callback(CurrentSection))
 				return CurrentSection;
@@ -773,7 +776,8 @@ inline void* PlatformWindows::FindStringInRange(const CharType* RefStr, const ui
 {
 	uint8_t* const SearchStart = reinterpret_cast<uint8_t*>(StartAddress);
 
-	const int32_t RefStrLen = StrlenHelper(RefStr);
+	// Ensure the null-terminator is also compared, else strings that are substrings of other strings might be falsely matched.
+	const int32_t RefStrLen = StrlenHelper(RefStr) + 1;
 
 	for (uintptr_t i = 0; i < Range; i++)
 	{
