@@ -102,10 +102,10 @@ R"(
 
 
 		/* Adds static_assert for struct-size, as well as struct-alignment */
-		inline constexpr bool bGenerateInlineAssertionsForStructSize = false;
+		inline constexpr bool bGenerateInlineAssertionsForStructSize = true;
 
 		/* Adds static_assert for member-offsets */
-		inline constexpr bool bGenerateInlineAssertionsForStructMembers = false;
+		inline constexpr bool bGenerateInlineAssertionsForStructMembers = true;
 
 
 		/* Prints debug information during Mapping-Generation */

@@ -5104,20 +5104,11 @@ public:
 };
 )";	
 
-	/* struct FEncryptedObjPtr */
-	BasicHpp <<
-		R"(
-class FEncryptedObjPtr
-{
-public:
-	class UObject* Object;
-	uint64_t KeyOrSomething;
-};
-)";
-	
-	/* struct FEncryptedObjPtr */
-	BasicHpp <<
-		R"(
+	if constexpr (Settings::EngineCore::bEnableEncryptedObjectPropertySupport)
+	{
+		/* struct FEncryptedObjPtr */
+		BasicHpp <<
+			R"(
 class FEncryptedObjPtr
 {
 public:
@@ -5129,9 +5120,9 @@ public:
 };
 )";
 
-	/* struct TEncryptedObjPtr */
-	BasicHpp <<
-		R"(
+		/* struct TEncryptedObjPtr */
+		BasicHpp <<
+			R"(
 template<typename UEType>
 class TEncryptedObjPtr : public FEncryptedObjPtr
 {
@@ -5187,7 +5178,7 @@ public:
 	}
 };
 )";
-
+	}
 
 	/* class FScriptInterface */
 	PredefinedStruct FScriptInterface = PredefinedStruct{
